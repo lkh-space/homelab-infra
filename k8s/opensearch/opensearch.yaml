@@ -5,6 +5,9 @@ metadata:
   namespace: infra
   labels:
     app: opensearch
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: "https"
+    traefik.ingress.kubernetes.io/service.serverstransport: "infra-opensearch-transport@kubernetescrd"
 spec:
   type: ClusterIP
   ports:

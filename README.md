@@ -50,15 +50,15 @@ flowchart TB
 
 모든 워크로드는 공통 네임스페이스 **`infra`**에 배포되며, k3s 내장 **`local-path`** 스토리지 클래스를 통해 호스트 디스크에 안전하게 영속 저장됩니다.
 
-| 서비스 | 워크로드 유형 | 복제본 | 스토리지 (PVC) | 주요 포트 (내부 / 외부) | 상세 런북 |
-| :--- | :--- | :---: | :--- | :--- | :---: |
-| **PostgreSQL** | Deployment | 1 | 50Gi (`postgres-pvc`) | ClusterIP `5432` | [문서 보기](.agents/references/services/postgres.md) |
-| **MongoDB** | StatefulSet | 3 | 10Gi x 3 (`mongodata`) | ClusterIP `27017` (`rs0` 3노드 복제셋) | [문서 보기](.agents/references/services/mongo.md) |
-| **MinIO** | Deployment | 1 | 100Gi (`minio-pvc`) | S3: `30900` (NodePort)<br>Console: `30901` (NodePort) | [문서 보기](.agents/references/services/minio.md) |
-| **OpenSearch** | StatefulSet | 1 | 10Gi (`opensearch-storage`) | ClusterIP `9200` (REST), `9300` (Node) | [문서 보기](.agents/references/services/opensearch.md) |
-| **Dashboards** | Deployment | 1 | - | ClusterIP `5601` | [문서 보기](.agents/references/services/opensearch.md) |
-| **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | AMQP `5672`<br>Web UI `15672` | [문서 보기](.agents/references/services/rabbitmq.md) |
-| **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | ClusterIP `6379` (AOF 활성화) | [문서 보기](.agents/references/services/redis.md) |
+| 서비스 | 워크로드 유형 | 복제본 | 스토리지 (PVC) | 주요 포트 (내부 / 외부) | Ingress 도메인 (Host) | 상세 런북 |
+| :--- | :--- | :---: | :--- | :--- | :--- | :---: |
+| **PostgreSQL** | Deployment | 1 | 50Gi (`postgres-pvc`) | ClusterIP `5432` | *(L4 TCP)* | [문서 보기](.agents/references/services/postgres.md) |
+| **MongoDB** | StatefulSet | 3 | 10Gi x 3 (`mongodata`) | ClusterIP `27017` (`rs0` 3노드 복제셋) | *(L4 TCP)* | [문서 보기](.agents/references/services/mongo.md) |
+| **MinIO** | Deployment | 1 | 100Gi (`minio-pvc`) | S3: `30900` (NodePort)<br>Console: `30901` (NodePort) | `minio.homelab.local`<br>`s3.homelab.local` | [문서 보기](.agents/references/services/minio.md) |
+| **OpenSearch** | StatefulSet | 1 | 10Gi (`opensearch-storage`) | ClusterIP `9200` (REST), `9300` (Node) | `opensearch.homelab.local` | [문서 보기](.agents/references/services/opensearch.md) |
+| **Dashboards** | Deployment | 1 | - | ClusterIP `5601` | `dashboards.homelab.local` | [문서 보기](.agents/references/services/opensearch.md) |
+| **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | AMQP `5672`<br>Web UI `15672` | `rabbitmq.homelab.local` | [문서 보기](.agents/references/services/rabbitmq.md) |
+| **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | ClusterIP `6379` (AOF 활성화) | *(L4 TCP)* | [문서 보기](.agents/references/services/redis.md) |
 
 ---
 
@@ -89,14 +89,18 @@ kubectl create secret generic rabbitmq-secret --from-env-file=k8s/rabbitmq/.env.
 kubectl create secret generic redis-secret --from-env-file=k8s/redis/.env.redis -n infra
 ```
 
-### 4. 서비스 배포
+### 4. 서비스 및 Ingress 배포
 ```bash
+# 인프라 서비스 배포
 kubectl apply -f k8s/postgres/postgres.yaml
 kubectl apply -f k8s/mongo/mongo.yaml
 kubectl apply -f k8s/minio/minio.yaml
 kubectl apply -f k8s/opensearch/opensearch.yaml
 kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
 kubectl apply -f k8s/redis/redis.yaml
+
+# Ingress 라우팅 배포 (Traefik)
+kubectl apply -f k8s/ingress/infra-ingress.yaml
 ```
 
 ---
@@ -163,7 +167,10 @@ homelab-infra/
 │   └── hosts.ini                  # 호스트 서버 인벤토리 (192.168.0.10)
 ├── playbooks/
 │   └── install-k3s.yml            # k3s 클러스터 프로비저닝 플레이북
+├── scripts/
+│   └── setup-hosts.sh             # 맥북 /etc/hosts 자동 등록 스크립트 (중복 방지)
 └── k8s/                           # 서비스별 Kubernetes 매니페스트 및 .env
+    ├── ingress/                   # Ingress 라우팅 매니페스트 (Traefik)
     ├── minio/
     ├── mongo/
     ├── opensearch/

@@ -62,6 +62,40 @@ kubectl apply -f k8s/minio/minio.yaml
 kubectl apply -f k8s/opensearch/opensearch.yaml
 kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
 kubectl apply -f k8s/redis/redis.yaml
+kubectl apply -f k8s/ingress/infra-ingress.yaml
+```
+
+### 3.3 Ingress(Traefik) 라우팅 및 접근 규약
+클러스터에 내장된 Traefik Ingress Controller(`ingressClassName: traefik`)를 통해 웹/HTTP 서비스에 호스트 기반 라우팅을 제공합니다.
+
+| 호스트명 | 대상 Service & Port | 설명 |
+| :--- | :--- | :--- |
+| `minio.homelab.local` | `minio-service:9001` | MinIO 웹 관리 콘솔 |
+| `s3.homelab.local` | `minio-service:9000` | MinIO S3 API |
+| `rabbitmq.homelab.local` | `rabbitmq-service:15672` | RabbitMQ 관리 대시보드 |
+| `dashboards.homelab.local` | `opensearch-dashboards-service:5601` | OpenSearch Dashboards |
+| `opensearch.homelab.local` | `opensearch-service:9200` | OpenSearch REST API (HTTPS 백엔드 연동) |
+
+**도메인 자동 등록 스크립트 (`/etc/hosts`)**:
+맥북에서 호스트명을 로컬 또는 Windows LAN IP로 자동 등록할 수 있습니다 (중복 도메인은 건너뜁니다).
+```bash
+# 기본값: 192.168.0.10 (Windows 호스트 80 포트 연결 시)
+sudo ./scripts/setup-hosts.sh
+
+# 로컬 포트포워딩 환경(127.0.0.1)으로 등록할 때
+sudo ./scripts/setup-hosts.sh 127.0.0.1
+```
+
+**Ingress 연결 검증 명령 (맥북 로컬 포트포워딩 활용)**:
+```bash
+# Traefik 컨트롤러 80 포트를 로컬 8080으로 포트포워딩
+kubectl port-forward -n kube-system svc/traefik 8080:80
+
+# 브라우저 또는 curl 검증 (/etc/hosts 등록 시 브라우저 직접 접근 가능)
+curl -I -H "Host: rabbitmq.homelab.local" http://localhost:8080
+curl -I -H "Host: minio.homelab.local" http://localhost:8080
+curl -I -H "Host: dashboards.homelab.local" http://localhost:8080
+curl -u admin:admin -H "Host: opensearch.homelab.local" http://localhost:8080
 ```
 
 ---
