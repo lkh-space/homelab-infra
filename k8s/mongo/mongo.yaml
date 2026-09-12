@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-headless
+  namespace: infra
+  labels:
+    app: mongodb
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 27017
+      targetPort: mongodb
+      name: mongodb
+  selector:
+    app: mongodb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+  namespace: infra
+  labels:
+    app: mongodb
+spec:
+  type: ClusterIP
+  ports:
+    - port: 27017
+      targetPort: mongodb
+      name: mongodb
+  selector:
+    statefulset.kubernetes.io/pod-name: mongodb-0
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-auth
+  namespace: infra
+  labels:
+    app: mongodb
+type: Opaque
+stringData:
+  # MongoDB 내부 노드 통신용 보안 키 (필수)
+  replica-key: "bW9uZ29kYXJlcGxpY2FrZXlmaWxlc2VjdXJlcmFuZG9tc3RyaW5nMjAyNg=="
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+  namespace: infra
+  labels:
+    app: mongodb
+spec:
+  serviceName: "mongo-headless"
+  podManagementPolicy: Parallel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      securityContext:
+        fsGroup: 999
+      volumes:
+        - name: mongodb-keyfile
+          secret:
+            secretName: mongodb-auth
+            defaultMode: 0400
+      containers:
+        - name: mongodb
+          image: mongo:8.0
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              mkdir -p /etc/mongodb && cp /tmp/secret/replica-key /etc/mongodb/replica-key && chown 999:999 /etc/mongodb/replica-key && chmod 400 /etc/mongodb/replica-key
+              exec docker-entrypoint.sh mongod --replSet rs0 --bind_ip_all --auth --keyFile /etc/mongodb/replica-key
+          envFrom:
+            - secretRef:
+                name: mongo-secret
+          ports:
+            - containerPort: 27017
+              name: mongodb
+          volumeMounts:
+            - name: mongodata
+              mountPath: /data/db
+            - name: mongodb-keyfile
+              mountPath: /tmp/secret
+        - name: init-rs
+          image: mongo:8.0
+          envFrom:
+            - secretRef:
+                name: mongo-secret
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              if [[ "$HOSTNAME" == "mongodb-0" ]]; then
+                echo "Waiting for MongoDB to start..."
+                while ! mongosh --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand('ping')" > /dev/null 2>&1; do sleep 2; done
+                echo "Initiating Replica Set..."
+                while true; do
+                  INIT_OUTPUT=$(mongosh --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval '
+                    rs.initiate({
+                      _id: "rs0",
+                      members: [
+                        { _id: 0, host: "mongodb-0.mongo-headless.infra.svc.cluster.local:27017", priority: 2 },
+                        { _id: 1, host: "mongodb-1.mongo-headless.infra.svc.cluster.local:27017", priority: 1 },
+                        { _id: 2, host: "mongodb-2.mongo-headless.infra.svc.cluster.local:27017", priority: 1 }
+                      ]
+                    })
+                  ' 2>&1)
+                  if [[ $? -eq 0 ]] || echo "$INIT_OUTPUT" | grep -q "already initialized"; then
+                    echo "Replica Set Initialized Successfully!"
+                    break
+                  fi
+                  echo "Retrying Replica Set Initialization in 5s..."
+                  sleep 5
+                done
+              fi
+              tail -f /dev/null
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "local-path"
+        resources:
+          requests:
+            storage: 10Gi

@@ -1,0 +1,39 @@
+---
+- name: Install and configure k3s on WSL2 Ubuntu
+  hosts: servers
+  become: true
+
+  tasks:
+    - name: Check if k3s is already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s
+      register: k3s_bin
+
+    - name: Download and install k3s
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--tls-san 192.168.0.10 --write-kubeconfig-mode 644" sh -
+      when: not k3s_bin.stat.exists
+
+    - name: Ensure k3s service is running and enabled
+      ansible.builtin.systemd:
+        name: k3s
+        state: started
+        enabled: true
+
+    - name: Fetch kubeconfig file to MacBook
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ lookup('env', 'HOME') }}/.kube/config"
+        flat: true
+
+- name: Post-process kubeconfig on MacBook
+  hosts: localhost
+  connection: local
+  become: false
+
+  tasks:
+    - name: Replace localhost server address with Windows Desktop LAN IP
+      ansible.builtin.replace:
+        path: "{{ lookup('env', 'HOME') }}/.kube/config"
+        regexp: 'https://127.0.0.1:6443'
+        replace: 'https://192.168.0.10:6443'

@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch-service
+  namespace: infra
+  labels:
+    app: opensearch
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9200
+      targetPort: 9200
+      name: rest
+    - port: 9300
+      targetPort: 9300
+      name: node
+  selector:
+    app: opensearch
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensearch
+  namespace: infra
+  labels:
+    app: opensearch
+spec:
+  serviceName: "opensearch-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch
+  template:
+    metadata:
+      labels:
+        app: opensearch
+    spec:
+      containers:
+        - name: opensearch
+          image: opensearchproject/opensearch:2.11.0
+          env:
+            - name: cluster.name
+              value: "homelab-opensearch"
+            - name: node.name
+              value: "opensearch-node1"
+            - name: discovery.type
+              value: "single-node"
+            - name: OPENSEARCH_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+            - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-secret
+                  key: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+          ports:
+            - containerPort: 9200
+              name: rest
+            - containerPort: 9300
+              name: node
+          volumeMounts:
+            - name: opensearch-storage
+              mountPath: /usr/share/opensearch/data
+  volumeClaimTemplates:
+    - metadata:
+        name: opensearch-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "local-path"
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch-dashboards-service
+  namespace: infra
+  labels:
+    app: opensearch-dashboards
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5601
+      targetPort: 5601
+      name: dashboards
+  selector:
+    app: opensearch-dashboards
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-dashboards
+  namespace: infra
+  labels:
+    app: opensearch-dashboards
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch-dashboards
+  template:
+    metadata:
+      labels:
+        app: opensearch-dashboards
+    spec:
+      containers:
+        - name: opensearch-dashboards
+          image: opensearchproject/opensearch-dashboards:2.11.0
+          env:
+            - name: OPENSEARCH_HOSTS
+              value: "https://opensearch-service:9200"
+            - name: opensearch.ssl.verificationMode
+              value: "none"
+            - name: opensearch.username
+              value: "admin"
+            - name: opensearch.password
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-secret
+                  key: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+          ports:
+            - containerPort: 5601
+              name: dashboards
