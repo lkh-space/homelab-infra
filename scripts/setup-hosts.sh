@@ -23,6 +23,7 @@ DOMAINS=(
   "dashboards.homelab.local"
   "opensearch.homelab.local"
   "kubeview.homelab.local"
+  "grafana.homelab.local"
 )
 
 # 1. root(sudo) 권한 체크

@@ -16,6 +16,7 @@
 | **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | `rabbitmq-service.infra.svc.cluster.local:5672` (AMQP)<br>`:15672` (Management UI) | `https://rabbitmq.homelab.local` | [`rabbitmq.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/rabbitmq.md) |
 | **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | `redis-service.infra.svc.cluster.local:6379` | *(L4 TCP)* | [`redis.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/redis.md) |
 | **KubeView** | Deployment | 1 | - | `kubeview-service.infra.svc.cluster.local:8000` | `https://kubeview.homelab.local` | [`kubeview.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/kubeview.md) |
+| **Monitoring & Logging**<br>(Prometheus / Loki / Grafana / Alloy) | Deployment / DaemonSet | 1 / DS | 10Gi (Prom)<br>5Gi (Loki)<br>2Gi (Grafana) | `grafana-service:3000`<br>`prometheus-service:9090`<br>`loki-service:3100` | `https://grafana.homelab.local` | [`monitoring.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/monitoring.md) |
 
 ---
 

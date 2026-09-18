@@ -60,6 +60,7 @@ flowchart TB
 | **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | AMQP `5672`<br>Web UI `15672` | `https://rabbitmq.homelab.local` | [문서 보기](.agents/references/services/rabbitmq.md) |
 | **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | ClusterIP `6379` (AOF 활성화) | *(L4 TCP)* | [문서 보기](.agents/references/services/redis.md) |
 | **KubeView** | Deployment | 1 | - | ClusterIP `8000` | `https://kubeview.homelab.local` | [문서 보기](.agents/references/services/kubeview.md) |
+| **Grafana** (모니터링/로깅) | Deployment / DaemonSet | 1 / DS | 10Gi (Prom)<br>5Gi (Loki)<br>2Gi (Grafana) | ClusterIP `3000` (Grafana)<br>`9090` (Prometheus)<br>`3100` (Loki) | `https://grafana.homelab.local` | [문서 보기](.agents/references/services/monitoring.md) |
 
 ---
 
@@ -88,22 +89,35 @@ kubectl create secret generic minio-secret --from-env-file=k8s/minio/.env.minio 
 kubectl create secret generic opensearch-secret --from-env-file=k8s/opensearch/.env.opensearch -n infra
 kubectl create secret generic rabbitmq-secret --from-env-file=k8s/rabbitmq/.env.rabbitmq -n infra
 kubectl create secret generic redis-secret --from-env-file=k8s/redis/.env.redis -n infra
+kubectl create secret generic grafana-secret --from-env-file=k8s/grafana/.env.grafana -n infra
 ```
 
-### 4. 서비스 및 Ingress 배포
+### 4. 서비스, 관측성 스택 및 Ingress 배포
 ```bash
-# cert-manager 사설 PKI ClusterIssuer 배포
-kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
+# make deploy로 일괄 배포하거나 수동 적용:
+make deploy
 
-# 인프라 서비스 배포
+# 또는 수동 적용:
+kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
 kubectl apply -f k8s/postgres/postgres.yaml
 kubectl apply -f k8s/mongo/mongo.yaml
 kubectl apply -f k8s/minio/minio.yaml
 kubectl apply -f k8s/opensearch/opensearch.yaml
 kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
 kubectl apply -f k8s/redis/redis.yaml
-
-# Ingress 및 TLS 라우팅 배포 (Traefik + cert-manager)
+kubectl apply -f k8s/kubeview/kubeview.yaml
+kubectl apply -f k8s/prometheus/prometheus-rbac.yaml
+kubectl apply -f k8s/prometheus/prometheus-config.yaml
+kubectl apply -f k8s/prometheus/prometheus.yaml
+kubectl apply -f k8s/node-exporter/node-exporter.yaml
+kubectl apply -f k8s/kube-state-metrics/kube-state-metrics.yaml
+kubectl apply -f k8s/loki/loki-config.yaml
+kubectl apply -f k8s/loki/loki.yaml
+kubectl apply -f k8s/alloy/alloy-config.yaml
+kubectl apply -f k8s/alloy/alloy.yaml
+kubectl apply -f k8s/grafana/grafana-datasources.yaml
+kubectl apply -f k8s/grafana/grafana-dashboards.yaml
+kubectl apply -f k8s/grafana/grafana.yaml
 kubectl apply -f k8s/ingress/infra-ingress.yaml
 ```
 

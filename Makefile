@@ -19,7 +19,8 @@ RESET  := $(shell tput sgr0 2>/dev/null || echo "")
         start-opensearch stop-opensearch check-opensearch \
         start-rabbitmq stop-rabbitmq check-rabbitmq \
         start-redis stop-redis check-redis \
-        start-kubeview stop-kubeview check-kubeview
+        start-kubeview stop-kubeview check-kubeview \
+        check-monitoring
 
 ## -----------------------------------------------------------------------------
 ## 📖 도움말
@@ -82,14 +83,14 @@ status:
 ## -----------------------------------------------------------------------------
 start:
 	@echo "$(GREEN)🚀 전체 인프라 서비스를 기동합니다...$(RESET)"
-	@kubectl scale deployment postgres minio opensearch-dashboards kubeview --replicas=1 -n $(NAMESPACE)
+	@kubectl scale deployment postgres minio opensearch-dashboards kubeview prometheus kube-state-metrics loki grafana --replicas=1 -n $(NAMESPACE)
 	@kubectl scale statefulset opensearch rabbitmq redis --replicas=1 -n $(NAMESPACE)
 	@kubectl scale statefulset mongodb --replicas=3 -n $(NAMESPACE)
 	@echo "$(GREEN)✔ 전체 서비스 기동 명령 완료 (파드가 뜨기까지 수 초가 소요됩니다)$(RESET)"
 
 stop:
 	@echo "$(YELLOW)🛑 전체 인프라 서비스를 일시 정지(Scale to 0)합니다...$(RESET)"
-	@kubectl scale deployment postgres minio opensearch-dashboards kubeview --replicas=0 -n $(NAMESPACE)
+	@kubectl scale deployment postgres minio opensearch-dashboards kubeview prometheus kube-state-metrics loki grafana --replicas=0 -n $(NAMESPACE)
 	@kubectl scale statefulset mongodb opensearch rabbitmq redis --replicas=0 -n $(NAMESPACE)
 	@echo "$(YELLOW)✔ 전체 서비스 정지 완료 (PVC 볼륨 데이터는 안전하게 보존됩니다)$(RESET)"
 
@@ -198,6 +199,17 @@ check-kubeview:
 	@echo -n "👁️  KubeView 헬스체크: "
 	@kubectl exec -n $(NAMESPACE) deploy/kubeview -- wget -q -O - http://localhost:8000/health >/dev/null 2>&1 && echo "$(GREEN)정상 (Ready)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
 
+check-monitoring:
+	@echo "$(CYAN)=== 📈 모니터링 & 로깅 스택 점검 ===$(RESET)"
+	@echo -n "🔥 Prometheus 헬스체크: "
+	@kubectl exec -n $(NAMESPACE) deploy/prometheus -- wget -q -O - http://localhost:9090/-/ready >/dev/null 2>&1 && echo "$(GREEN)정상 (Ready)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+	@echo -n "🪵 Loki 헬스체크: "
+	@kubectl exec -n $(NAMESPACE) deploy/loki -- wget -q -O - http://localhost:3100/ready >/dev/null 2>&1 && echo "$(GREEN)정상 (Ready)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+	@echo -n "📊 Grafana 헬스체크: "
+	@kubectl exec -n $(NAMESPACE) deploy/grafana -- wget -q -O - http://localhost:3000/api/health >/dev/null 2>&1 && echo "$(GREEN)정상 (Ready)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+	@echo -n "🚚 Alloy 로그수집기 점검: "
+	@kubectl get pods -n $(NAMESPACE) -l app=alloy --no-headers | grep -q "Running" && echo "$(GREEN)정상 (Running)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+
 ## -----------------------------------------------------------------------------
 ## 🔒 시크릿 / 배포 / 네트워크 관리
 ## -----------------------------------------------------------------------------
@@ -210,7 +222,10 @@ secrets:
 	@kubectl create secret generic opensearch-secret --from-env-file=k8s/opensearch/.env.opensearch -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
 	@kubectl create secret generic rabbitmq-secret --from-env-file=k8s/rabbitmq/.env.rabbitmq -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
 	@kubectl create secret generic redis-secret --from-env-file=k8s/redis/.env.redis -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
-	@echo "$(GREEN)✔ 6개 서비스 Secret 등록/갱신 완료$(RESET)"
+	@if [ -f k8s/grafana/.env.grafana ]; then \
+		kubectl create secret generic grafana-secret --from-env-file=k8s/grafana/.env.grafana -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - ; \
+	fi
+	@echo "$(GREEN)✔ 전체 서비스 Secret 등록/갱신 완료$(RESET)"
 
 deploy:
 	@echo "$(CYAN)📦 모든 Kubernetes 매니페스트 및 Ingress를 적용합니다...$(RESET)"
@@ -222,6 +237,18 @@ deploy:
 	@kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
 	@kubectl apply -f k8s/redis/redis.yaml
 	@kubectl apply -f k8s/kubeview/kubeview.yaml
+	@kubectl apply -f k8s/prometheus/prometheus-rbac.yaml
+	@kubectl apply -f k8s/prometheus/prometheus-config.yaml
+	@kubectl apply -f k8s/prometheus/prometheus.yaml
+	@kubectl apply -f k8s/node-exporter/node-exporter.yaml
+	@kubectl apply -f k8s/kube-state-metrics/kube-state-metrics.yaml
+	@kubectl apply -f k8s/loki/loki-config.yaml
+	@kubectl apply -f k8s/loki/loki.yaml
+	@kubectl apply -f k8s/alloy/alloy-config.yaml
+	@kubectl apply -f k8s/alloy/alloy.yaml
+	@kubectl apply -f k8s/grafana/grafana-datasources.yaml
+	@kubectl apply -f k8s/grafana/grafana-dashboards.yaml
+	@kubectl apply -f k8s/grafana/grafana.yaml
 	@kubectl apply -f k8s/ingress/infra-ingress.yaml
 	@echo "$(GREEN)✔ 전체 매니페스트 배포 완료$(RESET)"
 
