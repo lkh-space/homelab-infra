@@ -11,7 +11,7 @@
 - **워크로드 유형**: Deployment (`minio`)
 - **기본 복제본 수**: 1
 - **배포 전략**: `Recreate`
-- **컨테이너 이미지**: `minio/minio:latest`
+- **컨테이너 이미지**: `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z`
 - **스토리지 (PVC)**:
   - PVC 이름: `minio-pvc`
   - 요청 용량: 100Gi
