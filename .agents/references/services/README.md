@@ -15,6 +15,7 @@
 | **OpenSearch Dashboards** | Deployment | 1 | - | `opensearch-dashboards-service.infra.svc.cluster.local:5601` | `https://dashboards.homelab.local` | [`opensearch.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/opensearch.md) |
 | **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | `rabbitmq-service.infra.svc.cluster.local:5672` (AMQP)<br>`:15672` (Management UI) | `https://rabbitmq.homelab.local` | [`rabbitmq.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/rabbitmq.md) |
 | **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | `redis-service.infra.svc.cluster.local:6379` | *(L4 TCP)* | [`redis.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/redis.md) |
+| **KubeView** | Deployment | 1 | - | `kubeview-service.infra.svc.cluster.local:8000` | `https://kubeview.homelab.local` | [`kubeview.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/kubeview.md) |
 
 ---
 

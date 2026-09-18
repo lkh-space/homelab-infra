@@ -59,6 +59,7 @@ flowchart TB
 | **Dashboards** | Deployment | 1 | - | ClusterIP `5601` | `https://dashboards.homelab.local` | [문서 보기](.agents/references/services/opensearch.md) |
 | **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | AMQP `5672`<br>Web UI `15672` | `https://rabbitmq.homelab.local` | [문서 보기](.agents/references/services/rabbitmq.md) |
 | **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | ClusterIP `6379` (AOF 활성화) | *(L4 TCP)* | [문서 보기](.agents/references/services/redis.md) |
+| **KubeView** | Deployment | 1 | - | ClusterIP `8000` | `https://kubeview.homelab.local` | [문서 보기](.agents/references/services/kubeview.md) |
 
 ---
 
@@ -215,6 +216,7 @@ homelab-infra/
 └── k8s/                           # 서비스별 Kubernetes 매니페스트 및 .env 템플릿
     ├── cert-manager/              # cert-manager 사설 PKI ClusterIssuer 매니페스트
     ├── ingress/                   # Ingress 라우팅 및 TLS 매니페스트 (Traefik)
+    ├── kubeview/                  # kubeview.yaml (클러스터 시각화 대시보드)
     ├── minio/                     # minio.yaml, .env.minio.example
     ├── mongo/                     # mongo.yaml, .env.mongo.example
     ├── opensearch/                # opensearch.yaml, .env.opensearch.example

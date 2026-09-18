@@ -18,7 +18,8 @@ RESET  := $(shell tput sgr0 2>/dev/null || echo "")
         start-minio stop-minio check-minio \
         start-opensearch stop-opensearch check-opensearch \
         start-rabbitmq stop-rabbitmq check-rabbitmq \
-        start-redis stop-redis check-redis
+        start-redis stop-redis check-redis \
+        start-kubeview stop-kubeview check-kubeview
 
 ## -----------------------------------------------------------------------------
 ## 📖 도움말
@@ -29,10 +30,10 @@ help:
 	@echo "================================================================="
 	@echo "  $(YELLOW)[전체 일괄 제어]$(RESET)"
 	@echo "    make status            - 파드, PVC, Ingress 상태 한눈에 조회"
-	@echo "    make start             - 6대 서비스 전체 기동 (Scale Up)"
-	@echo "    make stop              - 6대 서비스 전체 일시 정지 (Scale to 0)"
+	@echo "    make start             - 6대 서비스 및 KubeView 전체 기동 (Scale Up)"
+	@echo "    make stop              - 6대 서비스 및 KubeView 일시 정지 (Scale to 0)"
 	@echo "    make restart           - 전체 서비스 재기동"
-	@echo "    make check             - 6대 서비스 딥 헬스체크 일괄 실행"
+	@echo "    make check             - 6대 서비스 및 KubeView 헬스체크 일괄 실행"
 	@echo ""
 	@echo "  $(YELLOW)[개별 서비스 On / Off]$(RESET)"
 	@echo "    make start-postgres    / make stop-postgres"
@@ -41,6 +42,7 @@ help:
 	@echo "    make start-opensearch  / make stop-opensearch"
 	@echo "    make start-rabbitmq    / make stop-rabbitmq"
 	@echo "    make start-redis       / make stop-redis"
+	@echo "    make start-kubeview    / make stop-kubeview"
 	@echo ""
 	@echo "  $(YELLOW)[개별 서비스 헬스체크]$(RESET)"
 	@echo "    make check-postgres    / make check-mongo"
@@ -80,14 +82,14 @@ status:
 ## -----------------------------------------------------------------------------
 start:
 	@echo "$(GREEN)🚀 전체 인프라 서비스를 기동합니다...$(RESET)"
-	@kubectl scale deployment postgres minio opensearch-dashboards --replicas=1 -n $(NAMESPACE)
+	@kubectl scale deployment postgres minio opensearch-dashboards kubeview --replicas=1 -n $(NAMESPACE)
 	@kubectl scale statefulset opensearch rabbitmq redis --replicas=1 -n $(NAMESPACE)
 	@kubectl scale statefulset mongodb --replicas=3 -n $(NAMESPACE)
 	@echo "$(GREEN)✔ 전체 서비스 기동 명령 완료 (파드가 뜨기까지 수 초가 소요됩니다)$(RESET)"
 
 stop:
 	@echo "$(YELLOW)🛑 전체 인프라 서비스를 일시 정지(Scale to 0)합니다...$(RESET)"
-	@kubectl scale deployment postgres minio opensearch-dashboards --replicas=0 -n $(NAMESPACE)
+	@kubectl scale deployment postgres minio opensearch-dashboards kubeview --replicas=0 -n $(NAMESPACE)
 	@kubectl scale statefulset mongodb opensearch rabbitmq redis --replicas=0 -n $(NAMESPACE)
 	@echo "$(YELLOW)✔ 전체 서비스 정지 완료 (PVC 볼륨 데이터는 안전하게 보존됩니다)$(RESET)"
 
@@ -152,10 +154,19 @@ stop-redis:
 	@echo "$(YELLOW)🛑 Redis 일시 정지...$(RESET)"
 	@kubectl scale statefulset redis --replicas=0 -n $(NAMESPACE)
 
+# KubeView
+start-kubeview:
+	@echo "$(GREEN)🚀 KubeView 기동...$(RESET)"
+	@kubectl scale deployment kubeview --replicas=1 -n $(NAMESPACE)
+
+stop-kubeview:
+	@echo "$(YELLOW)🛑 KubeView 일시 정지...$(RESET)"
+	@kubectl scale deployment kubeview --replicas=0 -n $(NAMESPACE)
+
 ## -----------------------------------------------------------------------------
 ## 🩺 헬스체크 (Health Checks)
 ## -----------------------------------------------------------------------------
-check: check-postgres check-mongo check-minio check-opensearch check-rabbitmq check-redis
+check: check-postgres check-mongo check-minio check-opensearch check-rabbitmq check-redis check-kubeview
 	@echo ""
 	@echo "$(GREEN)✨ 모든 서비스 검증 완료!$(RESET)"
 
@@ -183,6 +194,10 @@ check-redis:
 	@echo -n "⚡ Redis PING 점검: "
 	@kubectl exec -n $(NAMESPACE) redis-0 -- redis-cli -a password12@ ping 2>/dev/null | grep -q "PONG" && echo "$(GREEN)정상 (PONG)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
 
+check-kubeview:
+	@echo -n "👁️  KubeView 헬스체크: "
+	@kubectl exec -n $(NAMESPACE) deploy/kubeview -- wget -q -O - http://localhost:8000/health >/dev/null 2>&1 && echo "$(GREEN)정상 (Ready)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+
 ## -----------------------------------------------------------------------------
 ## 🔒 시크릿 / 배포 / 네트워크 관리
 ## -----------------------------------------------------------------------------
@@ -206,6 +221,7 @@ deploy:
 	@kubectl apply -f k8s/opensearch/opensearch.yaml
 	@kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
 	@kubectl apply -f k8s/redis/redis.yaml
+	@kubectl apply -f k8s/kubeview/kubeview.yaml
 	@kubectl apply -f k8s/ingress/infra-ingress.yaml
 	@echo "$(GREEN)✔ 전체 매니페스트 배포 완료$(RESET)"
 
