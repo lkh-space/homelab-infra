@@ -105,9 +105,32 @@ kubectl apply -f k8s/ingress/infra-ingress.yaml
 
 ---
 
-## ⚡ 자원 절약 및 일상 운영 (Scale to 0)
+## ⚡ 자원 절약 및 일상 운영 (Makefile 활용)
 
-홈랩 리소스를 절약하고 싶을 때는 파드를 0으로 축소하여 메모리와 CPU를 즉시 확보할 수 있습니다. **(PVC에 저장된 데이터는 완벽히 보존됩니다)**
+홈랩 리소스를 절약하고 싶을 때는 `Makefile`을 통해 단 한 줄로 전체 또는 개별 서비스를 끄고 켤 수 있습니다. **(PVC에 저장된 데이터는 완벽히 보존됩니다)**
+
+```bash
+# 1. 인프라 전체 상태 조회 (파드, PVC, Ingress)
+make status
+
+# 2. 전체 서비스 일시 정지 (Scale to 0) / 기동 (Scale Up)
+make stop     # 전체 정지
+make start    # 전체 기동 (MongoDB 3노드 정족수 자동 보장)
+
+# 3. 개별 서비스 선택적 On / Off
+make start-postgres    / make stop-postgres
+make start-mongo       / make stop-mongo
+make start-minio       / make stop-minio
+make start-opensearch  / make stop-opensearch
+make start-rabbitmq    / make stop-rabbitmq
+make start-redis       / make stop-redis
+
+# 4. 전체 서비스 헬스체크
+make check
+```
+
+<details>
+<summary><b>kubectl 명령어로 직접 제어하기 (클릭하여 펼치기)</b></summary>
 
 ```bash
 # 전체 서비스 일시 정지 (Scale down)
@@ -119,6 +142,7 @@ kubectl scale deployment postgres minio opensearch-dashboards --replicas=1 -n in
 kubectl scale statefulset opensearch rabbitmq redis --replicas=1 -n infra
 kubectl scale statefulset mongodb --replicas=3 -n infra     # ⚠️ MongoDB는 반드시 3노드로 복원
 ```
+</details>
 
 ---
 
@@ -162,21 +186,24 @@ homelab-infra/
 │           ├── opensearch.md      # OpenSearch/Dashboards 운영 명세서
 │           ├── rabbitmq.md        # RabbitMQ 운영 명세서
 │           └── redis.md           # Redis 운영 명세서
+├── Makefile                       # 일상 인프라 운영 자동화 (status, start, stop, check 등)
 ├── ansible.cfg                    # Ansible 기본 설정
 ├── inventory/
 │   └── hosts.ini                  # 호스트 서버 인벤토리 (192.168.0.10)
 ├── playbooks/
 │   └── install-k3s.yml            # k3s 클러스터 프로비저닝 플레이북
 ├── scripts/
-│   └── setup-hosts.sh             # 맥북 /etc/hosts 자동 등록 스크립트 (중복 방지)
-└── k8s/                           # 서비스별 Kubernetes 매니페스트 및 .env
+│   ├── setup-hosts.sh             # 맥북 /etc/hosts 자동 등록 스크립트 (중복 방지)
+│   └── windows/
+│       └── portproxy.bat          # Windows 재부팅 시 WSL2 포트포워딩 복구 배치 스크립트
+└── k8s/                           # 서비스별 Kubernetes 매니페스트 및 .env 템플릿
     ├── ingress/                   # Ingress 라우팅 매니페스트 (Traefik)
-    ├── minio/
-    ├── mongo/
-    ├── opensearch/
-    ├── postgres/
-    ├── rabbitmq/
-    └── redis/
+    ├── minio/                     # minio.yaml, .env.minio.example
+    ├── mongo/                     # mongo.yaml, .env.mongo.example
+    ├── opensearch/                # opensearch.yaml, .env.opensearch.example
+    ├── postgres/                  # postgres.yaml, .env.postgres.example
+    ├── rabbitmq/                  # rabbitmq.yaml, .env.rabbitmq.example
+    └── redis/                     # redis.yaml, .env.redis.example
 ```
 
 ---

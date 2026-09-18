@@ -103,30 +103,49 @@ curl -u admin:admin -H "Host: opensearch.homelab.local" http://localhost:8080
 ## 4. 자원 절약(Scale to 0) 및 재가동(Scale Up) 루틴
 
 개발하지 않을 때는 리소스 절약을 위해 파드를 0으로 내립니다. **(볼륨 데이터는 안전하게 보존됨)**
+`Makefile`을 사용하면 번거로운 kubectl 명령어 없이 한 번에 제어할 수 있습니다.
 
-### 4.1 전체 서비스 일시 정지 (Scale to 0)
+### 4.1 Makefile을 통한 제어 (권장)
 ```bash
-kubectl scale deployment postgres --replicas=0 -n infra
-kubectl scale statefulset mongodb --replicas=0 -n infra
-kubectl scale deployment minio --replicas=0 -n infra
-kubectl scale statefulset opensearch --replicas=0 -n infra
-kubectl scale deployment opensearch-dashboards --replicas=0 -n infra
-kubectl scale statefulset rabbitmq --replicas=0 -n infra
-kubectl scale statefulset redis --replicas=0 -n infra
+# 전체 서비스 상태 확인
+make status
+
+# 전체 서비스 일시 정지 (Scale to 0)
+make stop
+
+# 전체 서비스 재가동 (MongoDB 3노드 정족수 자동 보장)
+make start
+
+# 전체 서비스 재시작
+make restart
+
+# 특정 서비스만 개별 On / Off
+make start-postgres    # 또는 make stop-postgres
+make start-mongo       # 또는 make stop-mongo (3노드로 복원)
+make start-minio       # 또는 make stop-minio
+make start-opensearch  # 또는 make stop-opensearch
+make start-rabbitmq    # 또는 make stop-rabbitmq
+make start-redis       # 또는 make stop-redis
+
+# 헬스체크 일괄 실행
+make check
 ```
 
-### 4.2 전체 서비스 재가동 (Scale Up)
+### 4.2 수동 kubectl 명령어로 제어
+#### 전체 서비스 일시 정지 (Scale to 0)
+```bash
+kubectl scale deployment postgres minio opensearch-dashboards --replicas=0 -n infra
+kubectl scale statefulset mongodb opensearch rabbitmq redis --replicas=0 -n infra
+```
+
+#### 전체 서비스 재가동 (Scale Up)
 > [!IMPORTANT]
 > MongoDB는 3-노드 Replica Set 구성이므로 반드시 **replicas=3**으로 복구해야 정족수(Quorum)가 충족됩니다.
 
 ```bash
-kubectl scale deployment postgres --replicas=1 -n infra
+kubectl scale deployment postgres minio opensearch-dashboards --replicas=1 -n infra
+kubectl scale statefulset opensearch rabbitmq redis --replicas=1 -n infra
 kubectl scale statefulset mongodb --replicas=3 -n infra
-kubectl scale deployment minio --replicas=1 -n infra
-kubectl scale statefulset opensearch --replicas=1 -n infra
-kubectl scale deployment opensearch-dashboards --replicas=1 -n infra
-kubectl scale statefulset rabbitmq --replicas=1 -n infra
-kubectl scale scale statefulset redis --replicas=1 -n infra
 ```
 
 ---
@@ -172,7 +191,12 @@ kubectl port-forward -n infra svc/opensearch-dashboards-service 5601:5601
    ```bash
    ssh gorloom6425@192.168.0.10 "sudo systemctl restart k3s"
    ```
-4. **인증서 또는 설정 만료 시 Ansible 재실행**:
+4. **Windows 재부팅 후 타임아웃(`i/o timeout`) 또는 포트 불통 시**:
+   - Windows Desktop이 재부팅되면 WSL2의 내부 가상 IP가 변경되거나 포트포워딩 프록시(`netsh interface portproxy`)가 해제되어 맥북에서 k3s(6443)나 SSH(22)로 접속하지 못할 수 있습니다.
+   - **해결법**: Windows Desktop에서 저장소 내의 원클릭 배치파일을 더블클릭하여 실행합니다:
+     - 스크립트 위치: `scripts/windows/portproxy.bat`
+     - 스크립트 역할: 관리자 권한 자동 승격 → WSL2 기동 및 현재 IP 자동 추출 → 6443(k3s), 22(SSH), 80/443(Ingress), 30900/30901(MinIO) 포트프록시 및 방화벽 규칙 자동 갱신.
+5. **인증서 또는 설정 만료 시 Ansible 재실행**:
    ```bash
    ansible-playbook playbooks/install-k3s.yml
    ```
