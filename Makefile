@@ -12,7 +12,7 @@ YELLOW := $(shell tput setaf 3 2>/dev/null || echo "")
 RED    := $(shell tput setaf 1 2>/dev/null || echo "")
 RESET  := $(shell tput sgr0 2>/dev/null || echo "")
 
-.PHONY: help status start stop restart secrets deploy hosts check \
+.PHONY: help status start stop restart secrets deploy hosts check ca certs \
         start-postgres stop-postgres check-postgres \
         start-mongo stop-mongo check-mongo \
         start-minio stop-minio check-minio \
@@ -47,10 +47,12 @@ help:
 	@echo "    make check-minio       / make check-opensearch"
 	@echo "    make check-rabbitmq    / make check-redis"
 	@echo ""
-	@echo "  $(YELLOW)[배포 및 시크릿 / 네트워크]$(RESET)"
+	@echo "  $(YELLOW)[배포 및 시크릿 / 네트워크 / TLS]$(RESET)"
 	@echo "    make secrets           - .env 파일들로부터 k8s Secret 일괄 갱신"
 	@echo "    make deploy            - 모든 k8s 매니페스트 및 Ingress 배포"
 	@echo "    make hosts             - 맥북 /etc/hosts에 도메인 자동 등록"
+	@echo "    make ca                - 맥북 키체인에 루트 CA 인증서 등록 (브라우저 초록 자물쇠)"
+	@echo "    make certs             - cert-manager 및 TLS 인증서 발급 상태 확인"
 	@echo "================================================================="
 	@echo ""
 
@@ -69,6 +71,9 @@ status:
 	@echo ""
 	@echo "$(CYAN)=== 4. Ingress 도메인 라우팅 ===$(RESET)"
 	@kubectl get ingress -n $(NAMESPACE)
+	@echo ""
+	@echo "$(CYAN)=== 5. TLS 인증서 (cert-manager) ===$(RESET)"
+	@kubectl get certificate -n $(NAMESPACE)
 
 ## -----------------------------------------------------------------------------
 ## 🚀 전체 서비스 기동 / 정지 (Scale to 0 / Scale Up)
@@ -194,6 +199,7 @@ secrets:
 
 deploy:
 	@echo "$(CYAN)📦 모든 Kubernetes 매니페스트 및 Ingress를 적용합니다...$(RESET)"
+	@kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
 	@kubectl apply -f k8s/postgres/postgres.yaml
 	@kubectl apply -f k8s/mongo/mongo.yaml
 	@kubectl apply -f k8s/minio/minio.yaml
@@ -205,4 +211,12 @@ deploy:
 
 hosts:
 	@echo "$(CYAN)🌐 맥북 /etc/hosts 도메인 등록 스크립트를 실행합니다...$(RESET)"
-	@sudo ./scripts/setup-hosts.sh
+	@sudo ./scripts/setup-hosts.sh 192.168.0.10
+
+ca:
+	@echo "$(CYAN)🔒 맥북 시스템 키체인에 루트 CA 인증서를 등록합니다...$(RESET)"
+	@sudo ./scripts/install-ca.sh
+
+certs:
+	@echo "$(CYAN)📜 cert-manager ClusterIssuer 및 발급 인증서 현황...$(RESET)"
+	@kubectl get clusterissuer,certificate -A

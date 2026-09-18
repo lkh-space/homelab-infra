@@ -65,37 +65,44 @@ kubectl apply -f k8s/redis/redis.yaml
 kubectl apply -f k8s/ingress/infra-ingress.yaml
 ```
 
-### 3.3 Ingress(Traefik) 라우팅 및 접근 규약
-클러스터에 내장된 Traefik Ingress Controller(`ingressClassName: traefik`)를 통해 웹/HTTP 서비스에 호스트 기반 라우팅을 제공합니다.
+### 3.3 Ingress(Traefik) 및 cert-manager 사설 PKI(TLS) 라우팅
+클러스터에 내장된 Traefik Ingress Controller(`ingressClassName: traefik`)와 **`cert-manager`**를 연동하여, 모든 웹 서비스에 안전한 사설 TLS(HTTPS) 종단 및 호스트 기반 라우팅을 제공합니다.
 
-| 호스트명 | 대상 Service & Port | 설명 |
-| :--- | :--- | :--- |
-| `minio.homelab.local` | `minio-service:9001` | MinIO 웹 관리 콘솔 |
-| `s3.homelab.local` | `minio-service:9000` | MinIO S3 API |
-| `rabbitmq.homelab.local` | `rabbitmq-service:15672` | RabbitMQ 관리 대시보드 |
-| `dashboards.homelab.local` | `opensearch-dashboards-service:5601` | OpenSearch Dashboards |
-| `opensearch.homelab.local` | `opensearch-service:9200` | OpenSearch REST API (HTTPS 백엔드 연동) |
+| 호스트명 (HTTPS) | 대상 Service & Port | 설명 | 인증서 발급자 (Issuer) |
+| :--- | :--- | :--- | :--- |
+| `https://minio.homelab.local` | `minio-service:9001` | MinIO 웹 관리 콘솔 | `homelab-ca-issuer` |
+| `https://s3.homelab.local` | `minio-service:9000` | MinIO S3 API | `homelab-ca-issuer` |
+| `https://rabbitmq.homelab.local` | `rabbitmq-service:15672` | RabbitMQ 관리 대시보드 | `homelab-ca-issuer` |
+| `https://dashboards.homelab.local` | `opensearch-dashboards-service:5601` | OpenSearch Dashboards | `homelab-ca-issuer` |
+| `https://opensearch.homelab.local` | `opensearch-service:9200` | OpenSearch REST API | `homelab-ca-issuer` |
 
-**도메인 자동 등록 스크립트 (`/etc/hosts`)**:
-맥북에서 호스트명을 로컬 또는 Windows LAN IP로 자동 등록할 수 있습니다 (중복 도메인은 건너뜁니다).
+**인증서 발급 아키텍처**:
+1. **부트스트랩**: `homelab-selfsigned-issuer` (SelfSigned ClusterIssuer)
+2. **사설 루트 CA**: `Certificate` (`homelab-root-ca`, 10년 유효) -> `homelab-root-ca-secret`
+3. **중앙 발급자**: `homelab-ca-issuer` (CA ClusterIssuer)
+4. **서비스 인증서**: Ingress의 어노테이션(`cert-manager.io/cluster-issuer: homelab-ca-issuer`)을 통해 `homelab-infra-tls` Secret으로 자동 발급 및 만료 전 자동 갱신
+
+**DNS 및 TLS 인증서 클라이언트 등록 (맥북 터미널)**:
 ```bash
-# 기본값: 192.168.0.10 (Windows 호스트 80 포트 연결 시)
-sudo ./scripts/setup-hosts.sh
+# 1. 맥북 /etc/hosts에 Windows LAN IP(192.168.0.10)로 일괄 등록
+make hosts
 
-# 로컬 포트포워딩 환경(127.0.0.1)으로 등록할 때
-sudo ./scripts/setup-hosts.sh 127.0.0.1
+# 2. 맥북 시스템 키체인에 홈랩 루트 CA 인증서 등록 (Chrome/Safari 초록색 자물쇠 활성화)
+make ca
+
+# 3. 인증서 발급 상태 확인
+make certs
 ```
 
-**Ingress 연결 검증 명령 (맥북 로컬 포트포워딩 활용)**:
+**Ingress 및 HTTPS 연결 검증 명령**:
 ```bash
-# Traefik 컨트롤러 80 포트를 로컬 8080으로 포트포워딩
-kubectl port-forward -n kube-system svc/traefik 8080:80
+# 맥북에서 HTTPS 요청 검증 (루트 CA 신뢰 후)
+curl -I https://minio.homelab.local
+curl -I https://rabbitmq.homelab.local
+curl -I https://dashboards.homelab.local
 
-# 브라우저 또는 curl 검증 (/etc/hosts 등록 시 브라우저 직접 접근 가능)
-curl -I -H "Host: rabbitmq.homelab.local" http://localhost:8080
-curl -I -H "Host: minio.homelab.local" http://localhost:8080
-curl -I -H "Host: dashboards.homelab.local" http://localhost:8080
-curl -u admin:admin -H "Host: opensearch.homelab.local" http://localhost:8080
+# 또는 특정 IP로 직접 검증
+curl -I --resolve minio.homelab.local:443:192.168.0.10 https://minio.homelab.local
 ```
 
 ---

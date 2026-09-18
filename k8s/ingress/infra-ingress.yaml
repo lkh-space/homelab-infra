@@ -13,8 +13,18 @@ metadata:
   namespace: infra
   labels:
     app.kubernetes.io/part-of: homelab-infra
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca-issuer
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - minio.homelab.local
+        - s3.homelab.local
+        - rabbitmq.homelab.local
+        - dashboards.homelab.local
+        - opensearch.homelab.local
+      secretName: homelab-infra-tls
   rules:
     - host: minio.homelab.local
       http:

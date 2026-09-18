@@ -36,23 +36,28 @@ echo "🏠 Homelab Ingress 도메인 /etc/hosts 설정"
 echo "👉 대상 IP: ${TARGET_IP}"
 echo "=================================================="
 
-# 2. 신규 추가 대상 필터링
-NEW_ENTRIES=()
+# 2. 변경 대상 확인 및 정리
+NEED_UPDATE=0
 for domain in "${DOMAINS[@]}"; do
-  # 주석을 제외한 활성 라인 중 정확한 도메인 매칭 확인
   if grep -E "^[^#]*[[:space:]]+${domain}([[:space:]]|$)" "${HOSTS_FILE}" >/dev/null 2>&1; then
     CURRENT_LINE=$(grep -E "^[^#]*[[:space:]]+${domain}([[:space:]]|$)" "${HOSTS_FILE}" | head -n 1)
-    echo "  [건너뜀] ${domain} (이미 등록됨: ${CURRENT_LINE})"
+    CURRENT_IP=$(echo "${CURRENT_LINE}" | awk '{print $1}')
+    if [ "${CURRENT_IP}" != "${TARGET_IP}" ]; then
+      echo "  [갱신필요] ${domain} (${CURRENT_IP} -> ${TARGET_IP})"
+      NEED_UPDATE=1
+    else
+      echo "  [유지] ${domain} (이미 ${TARGET_IP}로 등록됨)"
+    fi
   else
-    echo "  [추가예정] ${TARGET_IP}  ${domain}"
-    NEW_ENTRIES+=("${TARGET_IP}  ${domain}")
+    echo "  [신규추가] ${TARGET_IP}  ${domain}"
+    NEED_UPDATE=1
   fi
 done
 
 # 3. 변경 사항이 있을 때만 백업 및 등록 진행
-if [ ${#NEW_ENTRIES[@]} -eq 0 ]; then
+if [ "${NEED_UPDATE}" -eq 0 ]; then
   echo "=================================================="
-  echo "✨ 모든 도메인이 이미 등록되어 있습니다. 변경 사항이 없습니다."
+  echo "✨ 모든 도메인이 이미 ${TARGET_IP}로 올바르게 등록되어 있습니다."
   exit 0
 fi
 
@@ -62,20 +67,26 @@ cp "${HOSTS_FILE}" "${BACKUP_FILE}"
 echo "--------------------------------------------------"
 echo "💾 /etc/hosts 백업 생성 완료: ${BACKUP_FILE}"
 
-# 호스트 파일에 추가
+# 기존 homelab 도메인 라인 제거 후 새 IP로 일괄 등록
+TMP_HOSTS=$(mktemp)
+grep -v -E "($(IFS='|'; echo "${DOMAINS[*]}"))" "${HOSTS_FILE}" > "${TMP_HOSTS}" || true
+
 {
   echo ""
-  echo "# Homelab Infrastructure Ingress Domains (Added: $(date '+%Y-%m-%d %H:%M:%S'))"
-  for entry in "${NEW_ENTRIES[@]}"; do
-    echo "${entry}"
+  echo "# Homelab Infrastructure Ingress Domains (Updated: $(date '+%Y-%m-%d %H:%M:%S'))"
+  for domain in "${DOMAINS[@]}"; do
+    echo "${TARGET_IP}  ${domain}"
   done
-} >> "${HOSTS_FILE}"
+} >> "${TMP_HOSTS}"
+
+cat "${TMP_HOSTS}" > "${HOSTS_FILE}"
+rm -f "${TMP_HOSTS}"
 
 echo "=================================================="
-echo "🎉 총 ${#NEW_ENTRIES[@]}개 도메인이 성공적으로 등록되었습니다!"
+echo "🎉 총 ${#DOMAINS[@]}개 도메인이 성공적으로 등록되었습니다!"
 echo ""
 echo "접속 테스트:"
 for domain in "${DOMAINS[@]}"; do
-  echo "  - http://${domain}"
+  echo "  - https://${domain}"
 done
 echo "=================================================="

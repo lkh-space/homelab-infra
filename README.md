@@ -50,14 +50,14 @@ flowchart TB
 
 모든 워크로드는 공통 네임스페이스 **`infra`**에 배포되며, k3s 내장 **`local-path`** 스토리지 클래스를 통해 호스트 디스크에 안전하게 영속 저장됩니다.
 
-| 서비스 | 워크로드 유형 | 복제본 | 스토리지 (PVC) | 주요 포트 (내부 / 외부) | Ingress 도메인 (Host) | 상세 런북 |
+| 서비스 | 워크로드 유형 | 복제본 | 스토리지 (PVC) | 주요 포트 (내부 / 외부) | Ingress 도메인 (HTTPS) | 상세 런북 |
 | :--- | :--- | :---: | :--- | :--- | :--- | :---: |
 | **PostgreSQL** | Deployment | 1 | 50Gi (`postgres-pvc`) | ClusterIP `5432` | *(L4 TCP)* | [문서 보기](.agents/references/services/postgres.md) |
 | **MongoDB** | StatefulSet | 3 | 10Gi x 3 (`mongodata`) | ClusterIP `27017` (`rs0` 3노드 복제셋) | *(L4 TCP)* | [문서 보기](.agents/references/services/mongo.md) |
-| **MinIO** | Deployment | 1 | 100Gi (`minio-pvc`) | S3: `30900` (NodePort)<br>Console: `30901` (NodePort) | `minio.homelab.local`<br>`s3.homelab.local` | [문서 보기](.agents/references/services/minio.md) |
-| **OpenSearch** | StatefulSet | 1 | 10Gi (`opensearch-storage`) | ClusterIP `9200` (REST), `9300` (Node) | `opensearch.homelab.local` | [문서 보기](.agents/references/services/opensearch.md) |
-| **Dashboards** | Deployment | 1 | - | ClusterIP `5601` | `dashboards.homelab.local` | [문서 보기](.agents/references/services/opensearch.md) |
-| **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | AMQP `5672`<br>Web UI `15672` | `rabbitmq.homelab.local` | [문서 보기](.agents/references/services/rabbitmq.md) |
+| **MinIO** | Deployment | 1 | 100Gi (`minio-pvc`) | S3: `30900` (NodePort)<br>Console: `30901` (NodePort) | `https://minio.homelab.local`<br>`https://s3.homelab.local` | [문서 보기](.agents/references/services/minio.md) |
+| **OpenSearch** | StatefulSet | 1 | 10Gi (`opensearch-storage`) | ClusterIP `9200` (REST), `9300` (Node) | `https://opensearch.homelab.local` | [문서 보기](.agents/references/services/opensearch.md) |
+| **Dashboards** | Deployment | 1 | - | ClusterIP `5601` | `https://dashboards.homelab.local` | [문서 보기](.agents/references/services/opensearch.md) |
+| **RabbitMQ** | StatefulSet | 1 | 5Gi (`rabbitmq-storage`) | AMQP `5672`<br>Web UI `15672` | `https://rabbitmq.homelab.local` | [문서 보기](.agents/references/services/rabbitmq.md) |
 | **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | ClusterIP `6379` (AOF 활성화) | *(L4 TCP)* | [문서 보기](.agents/references/services/redis.md) |
 
 ---
@@ -91,6 +91,9 @@ kubectl create secret generic redis-secret --from-env-file=k8s/redis/.env.redis 
 
 ### 4. 서비스 및 Ingress 배포
 ```bash
+# cert-manager 사설 PKI ClusterIssuer 배포
+kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
+
 # 인프라 서비스 배포
 kubectl apply -f k8s/postgres/postgres.yaml
 kubectl apply -f k8s/mongo/mongo.yaml
@@ -99,8 +102,18 @@ kubectl apply -f k8s/opensearch/opensearch.yaml
 kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
 kubectl apply -f k8s/redis/redis.yaml
 
-# Ingress 라우팅 배포 (Traefik)
+# Ingress 및 TLS 라우팅 배포 (Traefik + cert-manager)
 kubectl apply -f k8s/ingress/infra-ingress.yaml
+```
+
+### 5. 맥북 DNS 등록 및 루트 CA 신뢰 등록
+맥북 브라우저에서 `https://*.homelab.local`에 접속할 수 있도록 로컬 DNS 매핑과 루트 CA 인증서를 등록합니다.
+```bash
+# 맥북 /etc/hosts에 도메인 등록 (Windows IP 192.168.0.10 자동 매핑)
+make hosts
+
+# 맥북 키체인에 홈랩 루트 CA 인증서 등록 (브라우저 초록색 자물쇠 활성화)
+make ca
 ```
 
 ---
@@ -188,16 +201,20 @@ homelab-infra/
 │           └── redis.md           # Redis 운영 명세서
 ├── Makefile                       # 일상 인프라 운영 자동화 (status, start, stop, check 등)
 ├── ansible.cfg                    # Ansible 기본 설정
+├── certs/
+│   └── homelab-root-ca.crt        # cert-manager가 발급한 홈랩 사설 루트 CA 공개 인증서
 ├── inventory/
 │   └── hosts.ini                  # 호스트 서버 인벤토리 (192.168.0.10)
 ├── playbooks/
 │   └── install-k3s.yml            # k3s 클러스터 프로비저닝 플레이북
 ├── scripts/
-│   ├── setup-hosts.sh             # 맥북 /etc/hosts 자동 등록 스크립트 (중복 방지)
+│   ├── install-ca.sh              # 맥북 시스템 키체인에 루트 CA 자동 등록 스크립트
+│   ├── setup-hosts.sh             # 맥북 /etc/hosts 자동 등록 스크립트 (중복/IP 갱신 지원)
 │   └── windows/
 │       └── portproxy.bat          # Windows 재부팅 시 WSL2 포트포워딩 복구 배치 스크립트
 └── k8s/                           # 서비스별 Kubernetes 매니페스트 및 .env 템플릿
-    ├── ingress/                   # Ingress 라우팅 매니페스트 (Traefik)
+    ├── cert-manager/              # cert-manager 사설 PKI ClusterIssuer 매니페스트
+    ├── ingress/                   # Ingress 라우팅 및 TLS 매니페스트 (Traefik)
     ├── minio/                     # minio.yaml, .env.minio.example
     ├── mongo/                     # mongo.yaml, .env.mongo.example
     ├── opensearch/                # opensearch.yaml, .env.opensearch.example
