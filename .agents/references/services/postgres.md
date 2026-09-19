@@ -31,7 +31,7 @@
   | 환경변수 키 | 설명 | 현재 설정 예시/기본값 |
   | :--- | :--- | :--- |
   | `POSTGRES_USER` | 데이터베이스 관리자 계정명 | `postgres` |
-  | `POSTGRES_PASSWORD` | 관리자 접속 비밀번호 | `password12@` |
+  | `POSTGRES_PASSWORD` | 관리자 접속 비밀번호 | `<your-secure-password>` |
   | `POSTGRES_DB` | 초기 자동 생성 DB명 | `homelab_db` |
   | `PGDATA` | 데이터 파일 저장 서브 디렉토리 | `/var/lib/postgresql/data/pgdata` |
 

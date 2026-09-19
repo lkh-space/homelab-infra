@@ -31,18 +31,18 @@
 - **필수 환경변수 키 (`.env.redis`)**:
   | 환경변수 키 | 설명 | 현재 설정 예시/기본값 |
   | :--- | :--- | :--- |
-  | `REDIS_PASSWORD` | Redis 접속 인증 비밀번호 | `password12@` |
+  | `REDIS_PASSWORD` | Redis 접속 인증 비밀번호 | `<your-secure-password>` |
 
 ---
 
 ## 3. 검증 및 헬스체크
 
 ```bash
-# 1. redis-cli 핑 테스트 (PONG 응답 확인)
-kubectl exec -n infra redis-0 -- redis-cli -a password12@ ping
+# 1. redis-cli 핑 테스트 (파드 내부 환경변수 자동 활용 -> PONG 응답 확인)
+kubectl exec -n infra redis-0 -- /bin/sh -c 'redis-cli -a "$REDIS_PASSWORD" ping'
 
 # 2. Redis 정보 및 메모리 사용량 확인
-kubectl exec -n infra redis-0 -- redis-cli -a password12@ info memory
+kubectl exec -n infra redis-0 -- /bin/sh -c 'redis-cli -a "$REDIS_PASSWORD" info memory'
 ```
 
 ---
@@ -58,7 +58,7 @@ kubectl port-forward -n infra svc/redis-service 6379:6379
 ### 4.2 데이터 백업 및 복구 절차 (향후 확장)
 - RDB 수동 스냅샷 생성:
   ```bash
-  kubectl exec -n infra redis-0 -- redis-cli -a password12@ bgsave
+  kubectl exec -n infra redis-0 -- /bin/sh -c 'redis-cli -a "$REDIS_PASSWORD" bgsave'
   ```
 - 백업 파일 로컬 복사:
   ```bash

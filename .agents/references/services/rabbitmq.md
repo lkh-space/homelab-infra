@@ -33,7 +33,7 @@
   | 환경변수 키 | 설명 | 현재 설정 예시/기본값 |
   | :--- | :--- | :--- |
   | `RABBITMQ_DEFAULT_USER` | 기본 관리자 계정명 | `admin` |
-  | `RABBITMQ_DEFAULT_PASS` | 기본 관리자 비밀번호 | `password12@` |
+  | `RABBITMQ_DEFAULT_PASS` | 기본 관리자 비밀번호 | `<your-secure-password>` |
 
 ---
 
@@ -55,7 +55,7 @@ kubectl exec -n infra rabbitmq-0 -- rabbitmqctl list_queues
 맥북 로컬에서 NestJS(Microservices) 개발 및 Web UI 모니터링 시:
 ```bash
 kubectl port-forward -n infra svc/rabbitmq-service 5672:5672 15672:15672
-# 브라우저: http://localhost:15672 (ID: admin, PW: password12@)
+# 브라우저: http://localhost:15672 (ID: admin, PW: <your-secure-password>)
 ```
 
 ### 4.2 vhost 및 사용자/권한 관리 (향후 확장)

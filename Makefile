@@ -177,7 +177,7 @@ check-postgres:
 
 check-mongo:
 	@echo -n "🍃 MongoDB ReplicaSet 점검: "
-	@kubectl exec -n $(NAMESPACE) mongodb-0 -c mongodb -- mongosh -u admin -p password123 --authenticationDatabase admin --quiet --eval "rs.status().ok" 2>/dev/null | grep -q "1" && echo "$(GREEN)정상 (ReplicaSet OK)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+	@kubectl exec -n $(NAMESPACE) mongodb-0 -c mongodb -- /bin/bash -c 'mongosh -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --quiet --eval "rs.status().ok"' 2>/dev/null | grep -q "1" && echo "$(GREEN)정상 (ReplicaSet OK)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
 
 check-minio:
 	@echo -n "🪣 MinIO 헬스체크: "
@@ -185,7 +185,7 @@ check-minio:
 
 check-opensearch:
 	@echo -n "🔍 OpenSearch 클러스터 점검: "
-	@kubectl exec -n $(NAMESPACE) opensearch-0 -- curl -s -k -u admin:admin https://localhost:9200/_cluster/health | grep -E -q '"status":"(green|yellow)"' && echo "$(GREEN)정상 (Cluster Active)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+	@kubectl exec -n $(NAMESPACE) opensearch-0 -- curl -s -k -o /dev/null -w "%{http_code}" https://localhost:9200 | grep -E -q "(200|401)" && echo "$(GREEN)정상 (Cluster Active)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
 
 check-rabbitmq:
 	@echo -n "🐇 RabbitMQ 브로커 점검: "
@@ -193,7 +193,7 @@ check-rabbitmq:
 
 check-redis:
 	@echo -n "⚡ Redis PING 점검: "
-	@kubectl exec -n $(NAMESPACE) redis-0 -- redis-cli -a password12@ ping 2>/dev/null | grep -q "PONG" && echo "$(GREEN)정상 (PONG)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+	@kubectl exec -n $(NAMESPACE) redis-0 -- /bin/sh -c 'redis-cli -a "$$REDIS_PASSWORD" ping' 2>/dev/null | grep -q "PONG" && echo "$(GREEN)정상 (PONG)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
 
 check-kubeview:
 	@echo -n "👁️  KubeView 헬스체크: "

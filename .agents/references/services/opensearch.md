@@ -40,18 +40,21 @@
 - **필수 환경변수 키 (`.env.opensearch`)**:
   | 환경변수 키 | 설명 | 현재 설정 예시/기본값 |
   | :--- | :--- | :--- |
-  | `OPENSEARCH_INITIAL_ADMIN_PASSWORD` | 초기 관리자 비밀번호 (복합 문자 필수) | `password12@` |
+  | `OPENSEARCH_INITIAL_ADMIN_PASSWORD` | 초기 관리자 비밀번호 (복합 문자 필수) | `<your-secure-password>` |
 
 ---
 
 ## 3. 검증 및 헬스체크
 
 ```bash
-# 1. OpenSearch 클러스터 헬스체크 (green/yellow 상태 확인)
-kubectl exec -n infra opensearch-0 -- curl -k -u admin:password12@ https://localhost:9200/_cluster/health
+# 1. OpenSearch HTTPS 서비스 활성 점검 (비밀번호 불필요)
+kubectl exec -n infra opensearch-0 -- curl -s -k -o /dev/null -w "%{http_code}" https://localhost:9200
 
-# 2. 노드 상태 및 인덱스 카운트 확인
-kubectl exec -n infra opensearch-0 -- curl -k -u admin:password12@ https://localhost:9200/_cat/indices?v
+# 2. 클러스터 상세 헬스체크 (기본 인증)
+kubectl exec -n infra opensearch-0 -- curl -k -u "admin:<your-password>" https://localhost:9200/_cluster/health
+
+# 3. 노드 상태 및 인덱스 카운트 확인
+kubectl exec -n infra opensearch-0 -- curl -k -u "admin:<your-password>" https://localhost:9200/_cat/indices?v
 ```
 
 ---
@@ -70,6 +73,6 @@ kubectl port-forward -n infra svc/opensearch-dashboards-service 5601:5601
 ### 4.2 인덱스 및 스냅샷 관리 (향후 확장)
 - 인덱스 수동 생성:
   ```bash
-  kubectl exec -n infra opensearch-0 -- curl -k -u admin:password12@ -X PUT "https://localhost:9200/<index_name>"
+  kubectl exec -n infra opensearch-0 -- curl -k -u "admin:<your-password>" -X PUT "https://localhost:9200/<index_name>"
   ```
 - 스냅샷 리포지토리 등록 및 백업 (MinIO S3 연동 등).

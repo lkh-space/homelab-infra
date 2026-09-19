@@ -35,7 +35,7 @@
   | 환경변수 키 | 설명 | 현재 설정 예시/기본값 |
   | :--- | :--- | :--- |
   | `MINIO_ROOT_USER` | 루트 관리자 ID (Access Key) | `admin` |
-  | `MINIO_ROOT_PASSWORD` | 루트 관리자 비밀번호 (Secret Key) | `password12@` |
+  | `MINIO_ROOT_PASSWORD` | 루트 관리자 비밀번호 (Secret Key) | `<your-secure-password>` |
 
 ---
 
@@ -56,7 +56,7 @@ kubectl exec -n infra deploy/minio -- curl -I http://localhost:9000/minio/health
 ### 4.1 MinIO Client (`mc`) CLI 연동
 맥북 로컬에서 `mc` 클라이언트로 홈랩 MinIO 등록:
 ```bash
-mc alias set homelab http://192.168.0.10:30900 admin password12@
+mc alias set homelab http://192.168.0.10:30900 admin <your-secure-password>
 ```
 
 ### 4.2 버킷 및 정책 관리 (향후 확장)

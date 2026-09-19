@@ -36,18 +36,18 @@
   | 환경변수 키 | 설명 | 현재 설정 예시/기본값 |
   | :--- | :--- | :--- |
   | `MONGO_INITDB_ROOT_USERNAME` | MongoDB 루트 관리자 아이디 | `admin` |
-  | `MONGO_INITDB_ROOT_PASSWORD` | MongoDB 루트 관리자 암호 | `password123` |
+  | `MONGO_INITDB_ROOT_PASSWORD` | MongoDB 루트 관리자 암호 | `<your-secure-password>` |
 
 ---
 
 ## 3. 검증 및 헬스체크
 
 ```bash
-# 1. MongoDB Replica Set 상태 점검 (Primary/Secondary 멤버 상태 확인)
-kubectl exec -n infra mongodb-0 -c mongodb -- mongosh -u admin -p password123 --authenticationDatabase admin --eval "rs.status()"
+# 1. MongoDB Replica Set 상태 점검 (파드 내부 환경변수 자동 활용)
+kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c 'mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "rs.status()"'
 
 # 2. 간단한 DB 핑
-kubectl exec -n infra mongodb-0 -c mongodb -- mongosh -u admin -p password123 --authenticationDatabase admin --eval "db.adminCommand('ping')"
+kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c 'mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand(\"ping\")"'
 ```
 
 ---
@@ -69,11 +69,11 @@ kubectl port-forward -n infra svc/mongodb-service 27017:27017
 ### 4.3 백업 및 복구 절차 (향후 확장)
 - 백업 (mongodump):
   ```bash
-  kubectl exec -n infra mongodb-0 -c mongodb -- mongodump -u admin -p password123 --authenticationDatabase admin --archive=/tmp/mongo_backup.archive --gzip
+  kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c 'mongodump -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive=/tmp/mongo_backup.archive --gzip'
   kubectl cp infra/mongodb-0:/tmp/mongo_backup.archive ./mongo_backup_$(date +%Y%m%d).archive -c mongodb
   ```
 - 복구 (mongorestore):
   ```bash
   kubectl cp ./mongo_backup.archive infra/mongodb-0:/tmp/mongo_backup.archive -c mongodb
-  kubectl exec -n infra mongodb-0 -c mongodb -- mongorestore -u admin -p password123 --authenticationDatabase admin --archive=/tmp/mongo_backup.archive --gzip
+  kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c 'mongorestore -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive=/tmp/mongo_backup.archive --gzip'
   ```

@@ -105,7 +105,7 @@ Homelab 리소스(디스크 및 메모리)의 안정적인 운영을 위해 컴�
 ### 5.1 웹 콘솔 접속
 - **URL**: `https://grafana.homelab.local`
 - **관리자 계정**: `admin`
-- **비밀번호**: `password12@` (환경변수 `k8s/grafana/.env.grafana`에 정의)
+- **비밀번호**: `<your-secure-password>` (환경변수 `k8s/grafana/.env.grafana`에 정의)
 
 ### 5.2 사전 프로비저닝 데이터 소스
 - **Prometheus** (기본): `http://prometheus-service.infra.svc.cluster.local:9090`
