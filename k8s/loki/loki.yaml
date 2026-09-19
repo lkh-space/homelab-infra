@@ -41,6 +41,16 @@ spec:
         runAsGroup: 10001
         runAsNonRoot: true
         runAsUser: 10001
+      initContainers:
+        - name: clean-corrupt-wal
+          image: busybox:1.36
+          command: ["sh", "-c", "rm -rf /loki/wal/*"]
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+            - name: storage-volume
+              mountPath: /loki
       containers:
         - name: loki
           image: grafana/loki:3.4.2

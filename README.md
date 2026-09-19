@@ -155,6 +155,11 @@ make start-redis       / make stop-redis
 
 # 4. 전체 서비스 헬스체크
 make check
+make check-monitoring
+
+# 5. 인프라 비밀번호 안전 변경 (Password Rotation)
+./scripts/rotate-password.sh <service> [새비밀번호(선택)]
+# 상세 매뉴얼: docs/password-rotation-guide.md
 ```
 
 <details>

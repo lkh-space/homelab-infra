@@ -1,3 +1,5 @@
 .env.*
 !.env.*.example
-
+.credentials.local
+*.local
+!.credentials.local.example

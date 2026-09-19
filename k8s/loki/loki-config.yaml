@@ -22,8 +22,8 @@ data:
           endpoint: minio-service.infra.svc.cluster.local:9000
           insecure: true
           bucketnames: loki-data
-          access_key_id: ${MINIO_ROOT_USER}
-          secret_access_key: ${MINIO_ROOT_PASSWORD}
+          access_key_id: "${MINIO_ROOT_USER}"
+          secret_access_key: "${MINIO_ROOT_PASSWORD}"
           s3forcepathstyle: true
       replication_factor: 1
       ring:
