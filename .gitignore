@@ -6,6 +6,8 @@
 .credentials.local
 *.local
 !.credentials.local.example
+users_database.yml
+!users_database.yml.example
 
 # ==============================================================================
 # Security & Keys (Private keys, kubeconfig)

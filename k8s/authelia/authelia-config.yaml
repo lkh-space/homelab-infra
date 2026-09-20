@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authelia-config
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: authelia
+    app.kubernetes.io/part-of: homelab-infra
+data:
+  configuration.yml: |
+    ###############################################################################
+    # Authelia Main Configuration
+    ###############################################################################
+    theme: auto
+
+    server:
+      address: tcp://0.0.0.0:9091/
+      buffers:
+        read: 4096
+        write: 4096
+      timeouts:
+        read: 6s
+        write: 6s
+        idle: 30s
+
+    log:
+      level: info
+      format: text
+
+    totp:
+      issuer: homelab.local
+
+    authentication_backend:
+      password_reset:
+        disable: false
+      file:
+        path: /etc/authelia/users/users_database.yml
+        watch: true
+        password:
+          algorithm: argon2id
+          argon2:
+            variant: argon2id
+            iterations: 3
+            memory: 65536
+            parallelism: 4
+            key_length: 32
+            salt_length: 16
+
+    access_control:
+      default_policy: deny
+      rules:
+        # Authelia 자체 웹 UI는 바이패스
+        - domain:
+            - auth.homelab.local
+          policy: bypass
+        # homelab 전체 서브도메인은 1FA (아이디/비밀번호) 인증으로 통과
+        - domain:
+            - "*.homelab.local"
+          policy: one_factor
+
+    session:
+      name: authelia_session
+      same_site: lax
+      expiration: 12h
+      inactivity: 1h
+      remember_me: 1M
+      cookies:
+        - domain: homelab.local
+          authelia_url: https://auth.homelab.local
+          default_redirection_url: https://kubeview.homelab.local
+      redis:
+        host: redis-service.infra.svc.cluster.local
+        port: 6379
+
+    storage:
+      postgres:
+        address: tcp://postgres-service.infra.svc.cluster.local:5432
+        database: authelia_db
+        username: postgres
+        schema: public
+        timeout: 5s
+
+    notifier:
+      filesystem:
+        filename: /tmp/notification.txt

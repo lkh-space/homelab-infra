@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubeview-ingress
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: kubeview
+    app.kubernetes.io/part-of: homelab-infra
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca-issuer
+    traefik.ingress.kubernetes.io/router.middlewares: infra-authelia-forwardauth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - kubeview.homelab.local
+      secretName: homelab-infra-tls
+  rules:
+    - host: kubeview.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubeview-service
+                port:
+                  number: 8000

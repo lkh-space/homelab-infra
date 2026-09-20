@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: authelia
+    app.kubernetes.io/part-of: homelab-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authelia
+  template:
+    metadata:
+      labels:
+        app: authelia
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: authelia
+          image: authelia/authelia:4.38.19
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config"
+            - "/etc/authelia/configuration.yml"
+          env:
+            - name: TZ
+              value: "Asia/Seoul"
+            - name: AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: AUTHELIA_JWT_SECRET
+            - name: AUTHELIA_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: AUTHELIA_SESSION_SECRET
+            - name: AUTHELIA_STORAGE_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: AUTHELIA_STORAGE_ENCRYPTION_KEY
+            - name: AUTHELIA_SESSION_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: REDIS_PASSWORD
+            - name: AUTHELIA_STORAGE_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          ports:
+            - name: http
+              containerPort: 9091
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 9091
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 9091
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/authelia/configuration.yml
+              subPath: configuration.yml
+            - name: users-volume
+              mountPath: /etc/authelia/users
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: authelia-config
+        - name: users-volume
+          secret:
+            secretName: authelia-users
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authelia-service
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: authelia
+    app.kubernetes.io/part-of: homelab-infra
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9091
+      targetPort: 9091
+  selector:
+    app: authelia
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: authelia-ingress
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: authelia
+    app.kubernetes.io/part-of: homelab-infra
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca-issuer
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - auth.homelab.local
+      secretName: homelab-infra-tls
+  rules:
+    - host: auth.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: authelia-service
+                port:
+                  number: 9091

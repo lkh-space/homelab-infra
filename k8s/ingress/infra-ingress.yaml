@@ -26,6 +26,7 @@ spec:
         - opensearch.homelab.local
         - kubeview.homelab.local
         - grafana.homelab.local
+        - auth.homelab.local
       secretName: homelab-infra-tls
   rules:
     - host: minio.homelab.local
@@ -78,16 +79,6 @@ spec:
                 name: opensearch-service
                 port:
                   number: 9200
-    - host: kubeview.homelab.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: kubeview-service
-                port:
-                  number: 8000
     - host: grafana.homelab.local
       http:
         paths:

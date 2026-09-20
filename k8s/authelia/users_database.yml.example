@@ -1,0 +1,11 @@
+###############################################################################
+# Authelia Users Database Example (users_database.yml.example)
+###############################################################################
+users:
+  admin:
+    displayname: "Administrator"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$dummy_example_hash_here$dummy_example_hash_signature"
+    email: "admin@homelab.local"
+    groups:
+      - "admins"
+      - "dev"

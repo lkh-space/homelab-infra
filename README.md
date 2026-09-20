@@ -61,6 +61,7 @@ flowchart TB
 | **Redis** | StatefulSet | 1 | 5Gi (`redis-storage`) | ClusterIP `6379` (AOF 활성화) | *(L4 TCP)* | [문서 보기](.agents/references/services/redis.md) |
 | **KubeView** | Deployment | 1 | - | ClusterIP `8000` | `https://kubeview.homelab.local` | [문서 보기](.agents/references/services/kubeview.md) |
 | **Grafana** (모니터링/로깅) | Deployment / DaemonSet | 1 / DS | 10Gi (Prom)<br>5Gi (Loki)<br>2Gi (Grafana) | ClusterIP `3000` (Grafana)<br>`9090` (Prometheus)<br>`3100` (Loki) | `https://grafana.homelab.local` | [문서 보기](.agents/references/services/monitoring.md) |
+| **Authelia** (SSO 게이트웨이) | Deployment | 1 | - (Postgres/Redis) | ClusterIP `9091` | `https://auth.homelab.local` | [문서 보기](.agents/references/services/authelia.md) |
 
 ---
 
