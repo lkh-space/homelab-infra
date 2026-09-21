@@ -18,6 +18,7 @@
 | **KubeView** | Deployment | 1 | - | `kubeview-service.infra.svc.cluster.local:8000` | `https://kubeview.homelab.local` | [`kubeview.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/kubeview.md) |
 | **Monitoring & Logging**<br>(Prometheus / Loki / Grafana / Alloy) | Deployment / DaemonSet | 1 / DS | 10Gi (Prom)<br>5Gi (Loki)<br>2Gi (Grafana) | `grafana-service:3000`<br>`prometheus-service:9090`<br>`loki-service:3100` | `https://grafana.homelab.local` | [`monitoring.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/monitoring.md) |
 | **Authelia (SSO Gateway)** | Deployment | 1 | - (Postgres/Redis) | `authelia-service.infra.svc.cluster.local:9091` | `https://auth.homelab.local` | [`authelia.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/authelia.md) |
+| **ArgoCD (GitOps CD)** | Deployment / STS | 7 | - | `argocd-server.argocd.svc.cluster.local:80` | `https://argocd.homelab.local` | [`argocd.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/argocd.md) |
 
 ---
 
