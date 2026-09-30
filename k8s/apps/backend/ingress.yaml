@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-space-backend-ingress
+  namespace: apps
+  labels:
+    app: my-space-backend
+    app.kubernetes.io/name: my-space-backend
+    app.kubernetes.io/part-of: homelab-apps
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca-issuer
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - api.homelab.local
+      secretName: backend-tls
+  rules:
+    - host: api.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-space-backend
+                port:
+                  number: 3000
