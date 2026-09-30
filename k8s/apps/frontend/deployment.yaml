@@ -17,9 +17,11 @@ spec:
       labels:
         app: my-space-frontend
     spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
       containers:
         - name: frontend
-          image: limkeunhyeok/my-space-frontend:latest
+          image: chungdaeking/my-space-frontend:latest
           imagePullPolicy: Always
           ports:
             - name: http

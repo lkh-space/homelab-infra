@@ -9,6 +9,7 @@ resources:
   - ingress.yaml
 
 images:
-  - name: limkeunhyeok/my-space-frontend
-    newName: limkeunhyeok/my-space-frontend
+  - name: chungdaeking/my-space-frontend
+    newName: chungdaeking/my-space-frontend
     newTag: latest
+
