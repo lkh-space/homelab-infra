@@ -26,6 +26,8 @@ DOMAINS=(
   "grafana.homelab.local"
   "auth.homelab.local"
   "argocd.homelab.local"
+  "my-space.homelab.local"
+  "api.homelab.local"
 )
 
 # 1. root(sudo) 권한 체크
