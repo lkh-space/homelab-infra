@@ -61,9 +61,9 @@ data:
     session:
       name: authelia_session
       same_site: lax
-      expiration: 12h
+      expiration: 30d
       inactivity: 1h
-      remember_me: 1M
+      remember_me: 30d
       cookies:
         - domain: homelab.local
           authelia_url: https://auth.homelab.local

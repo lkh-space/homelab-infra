@@ -29,6 +29,12 @@
 | **컨테이너 포트** | `3000` (Node.js) | `80` (Nginx) |
 | **TLS 인증서 Secret** | `backend-tls` (cert-manager 자동 갱신) | `frontend-tls` (cert-manager 자동 갱신) |
 | **주요 엔드포인트** | - Swagger UI: `/docs`<br>- Health: `/docs` (추후 `/health` 분리 권장) | - Web App: `/` |
+| **인증 게이트웨이** | `apps-authelia-forwardauth` 미들웨어 적용 (`Remote-User` 등 헤더 주입) | `apps-authelia-forwardauth` 미들웨어 적용 (미인증 시 `auth.homelab.local` 302 리다이렉트) |
+
+> [!NOTE]
+> - **세션 수명**: 1시간 미활동 만료 (슬라이딩 자동 갱신) + Remember Me 시 30일 유지.
+> - **계정**: `admin`(관리자) 및 `guest` / `guest1234!`(포트폴리오 채용자 확인용, 1FA 즉시 로그인).
+> - **인증 헤더 주입**: `Remote-User`, `Remote-Groups`, `Remote-Name`, `Remote-Email`.
 
 ---
 
