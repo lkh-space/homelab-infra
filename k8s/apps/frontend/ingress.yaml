@@ -21,6 +21,13 @@ spec:
     - host: my-space.homelab.local
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: my-space-backend
+                port:
+                  number: 3000
           - path: /
             pathType: Prefix
             backend:
