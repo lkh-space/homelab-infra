@@ -93,3 +93,9 @@ kubectl rollout restart deploy/my-space-frontend -n apps
 ```bash
 sudo ./scripts/setup-hosts.sh
 ```
+
+### 4) Grafana 통합 관제 대시보드 (Observability)
+`my-space` 애플리케이션의 실시간 CPU/메모리 사용량, 재기동 횟수, 네트워크 I/O, 실시간 백엔드 로그는 Grafana 대시보드에서 통합 관제할 수 있습니다:
+- **접속 URL**: [`https://grafana.homelab.local/d/my-space-overview/my-space-application-observability`](https://grafana.homelab.local/d/my-space-overview/my-space-application-observability)
+- **대시보드 폴더**: `Applications` ➡️ `My Space Application Observability`
+

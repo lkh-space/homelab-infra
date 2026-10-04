@@ -10,11 +10,11 @@ data:
   dashboards.yaml: |
     apiVersion: 1
     providers:
-      - name: 'Default'
+      - name: 'Applications'
         orgId: 1
-        folder: ''
+        folder: 'Applications'
         type: file
         disableDeletion: false
         editable: true
         options:
-          path: /var/lib/grafana/dashboards
+          path: /etc/grafana/provisioning/dashboards/definitions

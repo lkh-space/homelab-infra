@@ -81,6 +81,8 @@ spec:
               mountPath: /etc/grafana/provisioning/datasources
             - name: dashboards-volume
               mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboard-definitions-volume
+              mountPath: /etc/grafana/provisioning/dashboards/definitions
       volumes:
         - name: storage-volume
           persistentVolumeClaim:
@@ -91,6 +93,9 @@ spec:
         - name: dashboards-volume
           configMap:
             name: grafana-dashboards-config
+        - name: dashboard-definitions-volume
+          configMap:
+            name: grafana-dashboard-my-space
 ---
 apiVersion: v1
 kind: Service
