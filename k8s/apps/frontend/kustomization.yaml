@@ -11,5 +11,5 @@ resources:
 images:
   - name: chungdaeking/my-space-frontend
     newName: chungdaeking/my-space-frontend
-    newTag: latest
+    newTag: sha-e721653
 
