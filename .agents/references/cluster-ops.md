@@ -112,15 +112,38 @@ curl -I --resolve minio.homelab.local:443:192.168.0.10 https://minio.homelab.loc
 개발하지 않을 때는 리소스 절약을 위해 파드를 0으로 내립니다. **(볼륨 데이터는 안전하게 보존됨)**
 `Makefile`을 사용하면 번거로운 kubectl 명령어 없이 한 번에 제어할 수 있습니다.
 
-### 4.1 Makefile을 통한 제어 (권장)
+### 4.1 리소스 절약 프로파일 제어 (권장)
+Windows Desktop WSL2 호스트의 CPU/메모리 절약을 위해 3단계 절약 모드와 실시간 상태 조회를 제공합니다:
+
+```bash
+# 1. 호스트 메모리 점유율 및 파드별 자원 랭킹 실시간 조회
+make mem
+
+# 2. My Space 애플리케이션만 On / Off (apps 네임스페이스, ~140MB 절약)
+make stop-apps     # 프론트/백엔드 정지 (ArgoCD Self-Heal 안전 제어)
+make start-apps    # 프론트/백엔드 기동 및 ArgoCD 자동 동기화 복구
+
+# 3. 대용량 Heavy 서비스만 On / Off (~1.8GB 메모리 즉시 절약)
+make stop-heavy    # OpenSearch + Dashboards + MongoDB 3노드 일시 정지
+make start-heavy   # OpenSearch 기동 + MongoDB 3노드 정족수 복구
+
+# 4. 전체 딥슬립 (Deep Sleep) / 전체 깨우기 (~3.5GB+ 메모리 절약)
+make sleep         # 코어(k3s/ArgoCD/Ingress) 제외 모든 인프라/앱 정지
+make wake          # 모든 인프라 및 애플리케이션 순차 기동
+
+# 5. 대화형(Interactive) 메뉴 스크립트 실행
+./scripts/resource-saver.sh
+```
+
+### 4.2 인프라 스택 표준 기동 / 정지
 ```bash
 # 전체 서비스 상태 확인
 make status
 
-# 전체 서비스 일시 정지 (Scale to 0)
+# 전체 인프라 서비스 일시 정지 (Scale to 0)
 make stop
 
-# 전체 서비스 재가동 (MongoDB 3노드 정족수 자동 보장)
+# 전체 인프라 서비스 재가동 (MongoDB 3노드 정족수 자동 보장)
 make start
 
 # 전체 서비스 재시작

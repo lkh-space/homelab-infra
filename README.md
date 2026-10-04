@@ -142,11 +142,19 @@ make ca
 # 1. 인프라 전체 상태 조회 (파드, PVC, Ingress)
 make status
 
-# 2. 전체 서비스 일시 정지 (Scale to 0) / 기동 (Scale Up)
-make stop     # 전체 정지
-make start    # 전체 기동 (MongoDB 3노드 정족수 자동 보장)
+# 2. 호스트 리소스 점유율 및 파드별 자원 랭킹 확인
+make mem
 
-# 3. 개별 서비스 선택적 On / Off
+# 3. 3단계 리소스 절약 프로파일 (Scale to 0)
+make stop-apps         / make start-apps   # My Space 앱만 정지/기동 (~140MB 절약)
+make stop-heavy        / make start-heavy  # OpenSearch + Mongo 3노드 정지/기동 (~1.8GB 절약)
+make sleep             / make wake         # 핵심 제외 전체 딥슬립 / 전체 기동 (~3.5GB+ 절약)
+
+# 4. 전체 서비스 일시 정지 (Scale to 0) / 기동 (Scale Up)
+make stop     # 인프라 전체 정지
+make start    # 인프라 전체 기동 (MongoDB 3노드 정족수 자동 보장)
+
+# 5. 개별 서비스 선택적 On / Off
 make start-postgres    / make stop-postgres
 make start-mongo       / make stop-mongo
 make start-minio       / make stop-minio

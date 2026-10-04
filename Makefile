@@ -20,7 +20,8 @@ RESET  := $(shell tput sgr0 2>/dev/null || echo "")
         start-rabbitmq stop-rabbitmq check-rabbitmq \
         start-redis stop-redis check-redis \
         start-kubeview stop-kubeview check-kubeview \
-        check-monitoring
+        check-monitoring \
+        mem stop-apps start-apps stop-heavy start-heavy sleep wake
 
 ## -----------------------------------------------------------------------------
 ## 📖 도움말
@@ -35,6 +36,12 @@ help:
 	@echo "    make stop              - 6대 서비스 및 KubeView 일시 정지 (Scale to 0)"
 	@echo "    make restart           - 전체 서비스 재기동"
 	@echo "    make check             - 6대 서비스 및 KubeView 헬스체크 일괄 실행"
+	@echo ""
+	@echo "  $(YELLOW)[⚡️ 호스트 리소스 절약 (Resource Saver)]$(RESET)"
+	@echo "    make mem               - 메모리 점유율 및 파드별 자원 랭킹 조회"
+	@echo "    make stop-apps         / make start-apps   (My Space 앱 On/Off, ~140MB 절약)"
+	@echo "    make stop-heavy        / make start-heavy  (OpenSearch+Mongo On/Off, ~1.8GB 절약)"
+	@echo "    make sleep             / make wake         (전체 딥슬립 / 전체 기동, ~3.5GB+ 절약)"
 	@echo ""
 	@echo "  $(YELLOW)[개별 서비스 On / Off]$(RESET)"
 	@echo "    make start-postgres    / make stop-postgres"
@@ -83,18 +90,42 @@ status:
 ## -----------------------------------------------------------------------------
 start:
 	@echo "$(GREEN)🚀 전체 인프라 서비스를 기동합니다...$(RESET)"
-	@kubectl scale deployment postgres minio opensearch-dashboards kubeview prometheus kube-state-metrics loki grafana --replicas=1 -n $(NAMESPACE)
+	@kubectl scale deployment postgres minio opensearch-dashboards kubeview prometheus kube-state-metrics loki grafana authelia --replicas=1 -n $(NAMESPACE)
 	@kubectl scale statefulset opensearch rabbitmq redis --replicas=1 -n $(NAMESPACE)
 	@kubectl scale statefulset mongodb --replicas=3 -n $(NAMESPACE)
 	@echo "$(GREEN)✔ 전체 서비스 기동 명령 완료 (파드가 뜨기까지 수 초가 소요됩니다)$(RESET)"
 
 stop:
 	@echo "$(YELLOW)🛑 전체 인프라 서비스를 일시 정지(Scale to 0)합니다...$(RESET)"
-	@kubectl scale deployment postgres minio opensearch-dashboards kubeview prometheus kube-state-metrics loki grafana --replicas=0 -n $(NAMESPACE)
+	@kubectl scale deployment postgres minio opensearch-dashboards kubeview prometheus kube-state-metrics loki grafana authelia --replicas=0 -n $(NAMESPACE)
 	@kubectl scale statefulset mongodb opensearch rabbitmq redis --replicas=0 -n $(NAMESPACE)
 	@echo "$(YELLOW)✔ 전체 서비스 정지 완료 (PVC 볼륨 데이터는 안전하게 보존됩니다)$(RESET)"
 
 restart: stop start
+
+## -----------------------------------------------------------------------------
+## ⚡️ 호스트 리소스 절약 (Resource Saver)
+## -----------------------------------------------------------------------------
+mem:
+	@./scripts/resource-saver.sh status
+
+stop-apps:
+	@./scripts/resource-saver.sh apps-off
+
+start-apps:
+	@./scripts/resource-saver.sh apps-on
+
+stop-heavy:
+	@./scripts/resource-saver.sh heavy-off
+
+start-heavy:
+	@./scripts/resource-saver.sh heavy-on
+
+sleep:
+	@./scripts/resource-saver.sh sleep
+
+wake:
+	@./scripts/resource-saver.sh wake
 
 ## -----------------------------------------------------------------------------
 ## 🎯 개별 서비스 제어 (On / Off)
