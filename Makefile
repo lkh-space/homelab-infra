@@ -20,7 +20,7 @@ RESET  := $(shell tput sgr0 2>/dev/null || echo "")
         start-rabbitmq stop-rabbitmq check-rabbitmq \
         start-redis stop-redis check-redis \
         start-kubeview stop-kubeview check-kubeview \
-        check-monitoring \
+        check-monitoring check-backend \
         mem stop-apps start-apps stop-heavy start-heavy sleep wake
 
 ## -----------------------------------------------------------------------------
@@ -229,6 +229,10 @@ check-redis:
 check-kubeview:
 	@echo -n "👁️  KubeView 헬스체크: "
 	@kubectl exec -n $(NAMESPACE) deploy/kubeview -- wget -q -O - http://localhost:8000/health >/dev/null 2>&1 && echo "$(GREEN)정상 (Ready)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
+
+check-backend:
+	@echo -n "🚀 Backend 헬스체크: "
+	@curl -k -s -f https://api.homelab.local/health >/dev/null 2>&1 && echo "$(GREEN)정상 (Ready)$(RESET)" || echo "$(RED)확인 필요$(RESET)"
 
 check-monitoring:
 	@echo "$(CYAN)=== 📈 모니터링 & 로깅 스택 점검 ===$(RESET)"

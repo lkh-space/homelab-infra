@@ -28,8 +28,8 @@
 | **내부 Service FQDN** | `my-space-backend.apps.svc.cluster.local:3000` | `my-space-frontend.apps.svc.cluster.local:80` |
 | **컨테이너 포트** | `3000` (Node.js) | `80` (Nginx) |
 | **TLS 인증서 Secret** | `backend-tls` (cert-manager 자동 갱신) | `frontend-tls` (cert-manager 자동 갱신) |
-| **주요 엔드포인트** | - Swagger UI: `/docs`<br>- Health: `/docs` (추후 `/health` 분리 권장) | - Web App: `/` |
-| **인증 게이트웨이** | `apps-authelia-forwardauth` 미들웨어 적용 (`Remote-User` 등 헤더 주입) | `apps-authelia-forwardauth` 미들웨어 적용 (미인증 시 `auth.homelab.local` 302 리다이렉트) |
+| **주요 엔드포인트** | - Swagger UI: `/docs`<br>- Health: `/health` (Public Bypass 인증 면제 허용)<br>- Version: `/version` (Public Bypass 허용) | - Web App: `/` |
+| **인증 게이트웨이** | `apps-authelia-forwardauth` 미들웨어 적용 (`Remote-User` 등 헤더 주입, `/health`, `/version`은 Bypass) | `apps-authelia-forwardauth` 미들웨어 적용 (미인증 시 `auth.homelab.local` 302 리다이렉트) |
 
 > [!NOTE]
 > - **세션 수명**: 1시간 미활동 만료 (슬라이딩 자동 갱신) + Remember Me 시 30일 유지.
@@ -58,12 +58,13 @@
 
 ## 4. 프로브 및 장애 감지 (Health Probes)
 
-| 서비스 | 프로브 종류 | 경로 | 초기 지연 (InitialDelay) | 검사 주기 (Period) |
-| :--- | :--- | :---: | :---: | :---: |
-| **backend** | Readiness Probe | `/docs` (Port 3000) | 5초 | 10초 |
-| **backend** | Liveness Probe | `/docs` (Port 3000) | 15초 | 20초 |
-| **frontend** | Readiness Probe | `/` (Port 80) | 3초 | 10초 |
-| **frontend** | Liveness Probe | `/` (Port 80) | 10초 | 15초 |
+| 서비스 | 프로브 종류 | 경로 | 초기 지연 (InitialDelay) | 검사 주기 (Period) | 타임아웃 / 임계치 |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **backend** | Readiness Probe | `/health` (Port 3000) | 5초 | 10초 | 3초 / 실패 3회 |
+| **backend** | Liveness Probe | `/health` (Port 3000) | 15초 | 20초 | 3초 / 실패 3회 |
+| **frontend** | Readiness Probe | `/` (Port 80) | 3초 | 10초 | - |
+| **frontend** | Liveness Probe | `/` (Port 80) | 10초 | 15초 | - |
+
 
 ---
 
