@@ -53,6 +53,16 @@ data:
         - domain:
             - auth.homelab.local
           policy: bypass
+        # my-space 버전 및 헬스체크 API는 바이패스 (Public)
+        - domain:
+            - "my-space.homelab.local"
+            - "api.homelab.local"
+          resources:
+            - "^/version.*$"
+            - "^/health.*$"
+            - "^/api/v1/version.*$"
+            - "^/api/v1/health.*$"
+          policy: bypass
         # homelab 전체 서브도메인은 1FA (아이디/비밀번호) 인증으로 통과
         - domain:
             - "*.homelab.local"
