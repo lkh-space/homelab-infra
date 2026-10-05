@@ -66,9 +66,13 @@
 | `OPENSEARCH_INDEX_DOCS` | `markdown-documents` | 마크다운 문서 검색 색인 인덱스명 |
 
 ### 2) `my-space-frontend`
+환경변수는 Kubernetes Secret `frontend-secret`(`k8s/apps/frontend/.env.frontend`)을 통해 주입됩니다.
+
 | 키 이름 | 기본값 / 현재값 | 설명 |
 | :--- | :--- | :--- |
 | `VITE_API_BASE_URL` | `https://api.homelab.local` | 프론트엔드가 호출할 백엔드 REST API 베이스 URL |
+| `VITE_BACKEND_URL` | `https://api.homelab.local` | 프론트엔드 백엔드 통신 호스트 URL |
+| `VITE_APP_ENV` | `production` | 애플리케이션 실행 환경 |
 
 > 프론트엔드 컨테이너 기동 시 `docker-entrypoint.d/40-generate-env.sh`가 `VITE_*` 환경변수를 읽어 브라우저 런타임용 `/usr/share/nginx/html/env-config.js`를 동적으로 생성합니다.
 

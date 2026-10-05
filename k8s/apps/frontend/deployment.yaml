@@ -26,9 +26,9 @@ spec:
           ports:
             - name: http
               containerPort: 80
-          env:
-            - name: VITE_API_BASE_URL
-              value: "https://api.homelab.local"
+          envFrom:
+            - secretRef:
+                name: frontend-secret
           resources:
             requests:
               cpu: 20m
