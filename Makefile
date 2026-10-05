@@ -260,6 +260,9 @@ secrets:
 	@if [ -f k8s/grafana/.env.grafana ]; then \
 		kubectl create secret generic grafana-secret --from-env-file=k8s/grafana/.env.grafana -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - ; \
 	fi
+	@if [ -f k8s/apps/backend/.env.backend ]; then \
+		kubectl create secret generic backend-secret --from-env-file=k8s/apps/backend/.env.backend -n apps --dry-run=client -o yaml | kubectl apply -f - ; \
+	fi
 	@echo "$(GREEN)✔ 전체 서비스 Secret 등록/갱신 완료$(RESET)"
 
 deploy:

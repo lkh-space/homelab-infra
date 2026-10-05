@@ -41,11 +41,29 @@
 ## 3. 환경변수 스키마 (Environment Variables)
 
 ### 1) `my-space-backend`
+환경변수는 Kubernetes Secret `backend-secret`(`k8s/apps/backend/.env.backend`)을 통해 주입됩니다.
+
 | 키 이름 | 기본값 / 현재값 | 설명 |
 | :--- | :--- | :--- |
 | `NODE_ENV` | `production` | Node.js 런타임 모드 |
 | `PORT` | `3000` | 애플리케이션 수신 포트 |
-| *(추후 추가)* `CORS_ORIGIN` | - | 허용 프론트 도메인 (`https://my-space.homelab.local`) |
+| `IS_LOCAL` | `false` | 로컬 실행 여부 플래그 |
+| `LOG_LEVEL` | `info` | 애플리케이션 로그 레벨 |
+| `DATABASE_URL` | `postgresql://postgres:...@postgres-service.infra.svc.cluster.local:5432/homelab_db` | PostgreSQL 연결 URI (Prisma) |
+| `MINIO_ENDPOINT` | `http://minio-service.infra.svc.cluster.local:9000` | MinIO 클러스터 내부 S3 엔드포인트 |
+| `MINIO_PORT` | `9000` | MinIO 포트 |
+| `MINIO_USE_SSL` | `false` | 내부 HTTP 통신 사용 여부 |
+| `MINIO_ACCESS_KEY` | `admin` | MinIO Access Key |
+| `MINIO_SECRET_KEY` | *(Secret 관리)* | MinIO Secret Key |
+| `MINIO_BUCKET_DOCS` | `my-space-markdown` | 마크다운 문서 저장용 버킷 |
+| `MINIO_BUCKET_ASSETS` | `my-space-assets` | 이미지/에셋 저장용 버킷 |
+| `MINIO_REGION` | `us-east-1` | S3 SDK 호환 더미 리전 |
+| `MINIO_FORCE_PATH_STYLE` | `true` | MinIO 경로 스타일 필수 옵션 |
+| `OPENSEARCH_NODE` | `https://opensearch-service.infra.svc.cluster.local:9200` | OpenSearch 클러스터 내부 HTTPS 주소 |
+| `OPENSEARCH_USERNAME` | `admin` | OpenSearch 관리자 계정 |
+| `OPENSEARCH_PASSWORD` | *(Secret 관리)* | OpenSearch 비밀번호 |
+| `OPENSEARCH_REJECT_UNAUTHORIZED` | `false` | 사설 TLS 인증서 무시 옵션 |
+| `OPENSEARCH_INDEX_DOCS` | `markdown-documents` | 마크다운 문서 검색 색인 인덱스명 |
 
 ### 2) `my-space-frontend`
 | 키 이름 | 기본값 / 현재값 | 설명 |
