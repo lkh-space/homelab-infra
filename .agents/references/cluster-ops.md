@@ -52,6 +52,7 @@ kubectl create secret generic minio-secret --from-env-file=k8s/minio/.env.minio 
 kubectl create secret generic opensearch-secret --from-env-file=k8s/opensearch/.env.opensearch -n infra --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic rabbitmq-secret --from-env-file=k8s/rabbitmq/.env.rabbitmq -n infra --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic redis-secret --from-env-file=k8s/redis/.env.redis -n infra --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic qdrant-secret --from-env-file=k8s/qdrant/.env.qdrant -n infra --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ### 3.2 매니페스트 전체 적용
@@ -62,6 +63,7 @@ kubectl apply -f k8s/minio/minio.yaml
 kubectl apply -f k8s/opensearch/opensearch.yaml
 kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
 kubectl apply -f k8s/redis/redis.yaml
+kubectl apply -f k8s/qdrant/qdrant.yaml
 kubectl apply -f k8s/ingress/infra-ingress.yaml
 ```
 
