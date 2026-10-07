@@ -11,5 +11,5 @@ resources:
 images:
   - name: chungdaeking/my-space-backend
     newName: chungdaeking/my-space-backend
-    newTag: sha-e4ee066
+    newTag: sha-8aba10c
 
