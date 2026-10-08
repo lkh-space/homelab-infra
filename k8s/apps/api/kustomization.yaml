@@ -11,4 +11,4 @@ resources:
 images:
   - name: chungdaeking/my-space-api
     newName: chungdaeking/my-space-api
-    newTag: sha-f308106
+    newTag: sha-e9f5993
