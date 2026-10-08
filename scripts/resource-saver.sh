@@ -63,19 +63,23 @@ apps_off() {
   log_warn "🛑 My Space 애플리케이션(frontend, backend)을 일시 정지(Scale to 0)합니다..."
   # ArgoCD Self-Heal이 복구하지 않도록 자동 동기화 잠시 해제
   kubectl patch app my-space-backend -n argocd --type merge -p '{"spec":{"syncPolicy":null}}' 2>/dev/null || true
+  kubectl patch app my-space-api -n argocd --type merge -p '{"spec":{"syncPolicy":null}}' 2>/dev/null || true
+  kubectl patch app my-space-ai -n argocd --type merge -p '{"spec":{"syncPolicy":null}}' 2>/dev/null || true
   kubectl patch app my-space-frontend -n argocd --type merge -p '{"spec":{"syncPolicy":null}}' 2>/dev/null || true
 
-  kubectl scale deployment my-space-backend my-space-frontend --replicas=0 -n apps
-  log_success "My Space 애플리케이션 정지 완료! (약 140MB+ 절약)"
+  kubectl scale deployment my-space-backend my-space-api my-space-ai my-space-frontend --replicas=0 -n apps 2>/dev/null || true
+  log_success "My Space 애플리케이션 정지 완료!"
 }
 
 apps_on() {
   echo ""
-  log_info "🚀 My Space 애플리케이션(frontend, backend)을 기동(Scale Up)합니다..."
-  kubectl scale deployment my-space-backend my-space-frontend --replicas=1 -n apps
+  log_info "🚀 My Space 애플리케이션(frontend, api, ai)을 기동(Scale Up)합니다..."
+  kubectl scale deployment my-space-api my-space-ai my-space-frontend --replicas=1 -n apps 2>/dev/null || true
 
   # ArgoCD 자동 동기화 복구
   kubectl patch app my-space-backend -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}' 2>/dev/null || true
+  kubectl patch app my-space-api -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}' 2>/dev/null || true
+  kubectl patch app my-space-ai -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}' 2>/dev/null || true
   kubectl patch app my-space-frontend -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}' 2>/dev/null || true
   log_success "My Space 애플리케이션 기동 명령 완료 (ArgoCD Self-Heal 복구)"
 }

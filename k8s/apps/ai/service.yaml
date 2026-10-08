@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-space-ai
+  namespace: apps
+  labels:
+    app: my-space-ai
+    app.kubernetes.io/name: my-space-ai
+    app.kubernetes.io/part-of: homelab-apps
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+  selector:
+    app: my-space-ai

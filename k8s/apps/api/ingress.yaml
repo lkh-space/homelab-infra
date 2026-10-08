@@ -1,11 +1,11 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: my-space-backend-ingress
+  name: my-space-api-ingress
   namespace: apps
   labels:
-    app: my-space-backend
-    app.kubernetes.io/name: my-space-backend
+    app: my-space-api
+    app.kubernetes.io/name: my-space-api
     app.kubernetes.io/part-of: homelab-apps
   annotations:
     cert-manager.io/cluster-issuer: homelab-ca-issuer
@@ -26,6 +26,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: my-space-backend
+                name: my-space-api
                 port:
                   number: 3000

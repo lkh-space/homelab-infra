@@ -1,49 +1,46 @@
 # my-space 애플리케이션 리소스 스펙 및 개발자 런북 (`my-space.md`)
 
-이 문서는 Homelab Kubernetes(k3s) 클러스터에 배포된 **`my-space` 애플리케이션(백엔드 & 프론트엔드)**의 컴퓨팅 리소스 할당량(CPU/Memory), 네트워크 포트, 헬스체크, 환경변수 및 운영 런북을 정리한 개발자 참조 가이드입니다.
+이 문서는 Homelab Kubernetes(k3s) 클러스터에 배포된 **`my-space` 애플리케이션 스택(API, AI Workspace, Frontend)**의 컴퓨팅 리소스 할당량(CPU/Memory), 네트워크 포트, 내부 FQDN, 헬스체크, 환경변수 및 운영 런북을 정의합니다.
 
 ---
 
 ## 1. 워크로드 및 리소스 할당 스펙 (Resource Quotas)
 
-개발 및 운영 시 파악해야 하는 각 컨테이너의 하드웨어 리소스 할당량과 제한 스펙입니다.
+모노리포(`apps/api`, `apps/ai`) 아키텍처에 맞춰 각 컨테이너를 독립 워크로드로 격리 배포합니다.
 
 | 워크로드 | 컨테이너 | CPU Request | CPU Limit | Memory Request | Memory Limit | 비고 |
 | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **`my-space-backend`**<br>(NestJS) | `backend` | **50m**<br>(0.05 core) | **500m**<br>(0.5 core) | **128Mi** | **512Mi** | PDF 조작(`qpdf` 등) 메모리 버스트 고려 |
+| **`my-space-api`**<br>(NestJS Main API) | `api` | **50m**<br>(0.05 core) | **500m**<br>(0.5 core) | **128Mi** | **512Mi** | PDF 조작, 비즈니스 로직, S3/DB 연동 |
+| **`my-space-ai`**<br>(NestJS AI Engine) | `ai` | **50m**<br>(0.05 core) | **500m**<br>(0.5 core) | **128Mi** | **512Mi** | RAG 청킹, Qdrant 벡터 검색, Gemini 연동 |
 | **`my-space-frontend`**<br>(Nginx SPA) | `frontend` | **20m**<br>(0.02 core) | **200m**<br>(0.2 core) | **32Mi** | **128Mi** | 정적 파일 서빙 및 런타임 env 주입 |
 
 > [!NOTE]
 > - **Request (최소 보장 자원)**: 파드가 노드에 스케줄링되기 위해 반드시 확보되어야 하는 자원입니다.
-> - **Limit (최대 제한 자원)**: 메모리가 Limit(512Mi / 128Mi)을 초과하면 OOMKilled가 발생하며, CPU는 Limit 초과 시 스로틀링(Throttling)됩니다.
+> - **Limit (최대 제한 자원)**: 메모리가 Limit을 초과하면 OOMKilled가 발생하며, CPU는 Limit 초과 시 스로틀링(Throttling)됩니다.
 
 ---
 
 ## 2. 네트워크 및 엔드포인트 명세
 
-| 구분 | my-space-backend | my-space-frontend |
-| :--- | :--- | :--- |
-| **네임스페이스** | `apps` | `apps` |
-| **외부 접근 URL** | `https://api.homelab.local` | `https://my-space.homelab.local` |
-| **내부 Service FQDN** | `my-space-backend.apps.svc.cluster.local:3000` | `my-space-frontend.apps.svc.cluster.local:80` |
-| **컨테이너 포트** | `3000` (Node.js) | `80` (Nginx) |
-| **TLS 인증서 Secret** | `backend-tls` (cert-manager 자동 갱신) | `frontend-tls` (cert-manager 자동 갱신) |
-| **주요 엔드포인트** | - Swagger UI: `/docs`<br>- Health: `/health` (Public Bypass 인증 면제 허용)<br>- Version: `/version` (Public Bypass 허용) | - Web App: `/` |
-| **인증 게이트웨이** | `apps-authelia-forwardauth` 미들웨어 적용 (`Remote-User` 등 헤더 주입, `/health`, `/version`은 Bypass) | `apps-authelia-forwardauth` 미들웨어 적용 (미인증 시 `auth.homelab.local` 302 리다이렉트) |
-
-> [!NOTE]
-> - **세션 수명**: 1시간 미활동 만료 (슬라이딩 자동 갱신) + Remember Me 시 30일 유지.
-> - **계정**: `admin`(관리자) 및 `guest` / `guest1234!`(포트폴리오 채용자 확인용, 1FA 즉시 로그인).
-> - **인증 헤더 주입**: `Remote-User`, `Remote-Groups`, `Remote-Name`, `Remote-Email`.
+| 구분 | my-space-api (메인 API) | my-space-ai (AI 마이크로서비스) | my-space-frontend (웹) |
+| :--- | :--- | :--- | :--- |
+| **네임스페이스** | `apps` | `apps` | `apps` |
+| **외부 접근 URL** | `https://api.homelab.local`<br>(또는 `https://my-space.homelab.local/api`) | *(없음 - 클러스터 내부 비공개)* | `https://my-space.homelab.local` |
+| **내부 Service FQDN** | `my-space-api.apps.svc.cluster.local:3000` | `my-space-ai.apps.svc.cluster.local:3000` | `my-space-frontend.apps.svc.cluster.local:80` |
+| **통신 방식** | 외부 클라이언트 ➡️ API | **내부 MSA 전용 (API ➡️ AI 호출)** | 브라우저 ➡️ Frontend |
+| **컨테이너 포트** | `3000` (Node.js) | `3000` (Node.js) | `80` (Nginx) |
+| **TLS 인증서 Secret** | `backend-tls` (cert-manager 자동 갱신) | - (내부 평문 통신) | `frontend-tls` (cert-manager 자동 갱신) |
+| **주요 엔드포인트** | - Swagger UI: `/docs`<br>- Health: `/health`<br>- Version: `/version` | - Health: `/health`<br>- AI Query: `/ai/query`<br>- Embedding: `/ai/embed` | - Web App: `/` |
+| **인증 게이트웨이** | `apps-authelia-forwardauth` 미들웨어 적용 | 내부 통신 전용 (게이트웨이 우회/보안 격리) | `apps-authelia-forwardauth` 미들웨어 적용 |
 
 ---
 
-## 3. 환경변수 스키마 (Environment Variables)
+## 3. 환경변수 및 시크릿 스키마
 
-### 1) `my-space-backend`
-환경변수는 Kubernetes Secret `backend-secret`(`k8s/apps/backend/.env.backend`)을 통해 주입됩니다.
+### 1) `my-space-api` (`api-secret`)
+환경변수는 Kubernetes Secret `api-secret`([`k8s/apps/api/.env.api`](file:///Users/limkeunhyeok/workspace/homelab-infra/k8s/apps/api/.env.api))을 통해 주입됩니다.
 
-| 키 이름 | 기본값 / 현재값 | 설명 |
+| 키 이름 | 기본값 / 설정 예시 | 설명 |
 | :--- | :--- | :--- |
 | `NODE_ENV` | `production` | Node.js 런타임 모드 |
 | `PORT` | `3000` | 애플리케이션 수신 포트 |
@@ -56,7 +53,7 @@
 | `MINIO_ACCESS_KEY` | `admin` | MinIO Access Key |
 | `MINIO_SECRET_KEY` | *(Secret 관리)* | MinIO Secret Key |
 | `MINIO_BUCKET_DOCS` | `my-space-markdown` | 마크다운 문서 저장용 버킷 |
-| `MINIO_BUCKET_ASSETS` | `my-space-assets` | 이미지/에셋 저장용 버킷 |
+| `MINIO_BUCKET_ASSETS`| `my-space-assets` | 이미지/에셋 저장용 버킷 |
 | `MINIO_REGION` | `us-east-1` | S3 SDK 호환 더미 리전 |
 | `MINIO_FORCE_PATH_STYLE` | `true` | MinIO 경로 스타일 필수 옵션 |
 | `OPENSEARCH_NODE` | `https://opensearch-service.infra.svc.cluster.local:9200` | OpenSearch 클러스터 내부 HTTPS 주소 |
@@ -64,61 +61,65 @@
 | `OPENSEARCH_PASSWORD` | *(Secret 관리)* | OpenSearch 비밀번호 |
 | `OPENSEARCH_REJECT_UNAUTHORIZED` | `false` | 사설 TLS 인증서 무시 옵션 |
 | `OPENSEARCH_INDEX_DOCS` | `markdown-documents` | 마크다운 문서 검색 색인 인덱스명 |
+| **`AI_SERVICE_URL`** | **`http://my-space-ai.apps.svc.cluster.local:3000`** | **내부 AI 워크스페이스 마이크로서비스 호출 엔드포인트** |
 
-### 2) `my-space-frontend`
-환경변수는 Kubernetes Secret `frontend-secret`(`k8s/apps/frontend/.env.frontend`)을 통해 주입됩니다.
+### 2) `my-space-ai` (`ai-secret`)
+환경변수는 Kubernetes Secret `ai-secret`([`k8s/apps/ai/.env.ai`](file:///Users/limkeunhyeok/workspace/homelab-infra/k8s/apps/ai/.env.ai))을 통해 주입됩니다.
+
+| 키 이름 | 기본값 / 설정 예시 | 설명 |
+| :--- | :--- | :--- |
+| `NODE_ENV` | `production` | Node.js 런타임 모드 |
+| `PORT` | `3000` | 애플리케이션 수신 포트 |
+| `IS_LOCAL` | `false` | 로컬 실행 여부 플래그 |
+| `LOG_LEVEL` | `info` | 애플리케이션 로그 레벨 |
+| **`GEMINI_API_KEY`** | `your_actual_gemini_api_key_here` | Google Gemini API 인증 키 (필수) |
+| `GEMINI_LLM_MODEL` | `gemini-1.5-flash` | 기본 LLM 생성 모델 |
+| `GEMINI_EMBEDDING_MODEL` | `text-embedding-004` | 텍스트 임베딩 모델 (768차원) |
+| **`QDRANT_URL`** | **`http://qdrant-service.infra.svc.cluster.local:6333`** | Qdrant Vector DB 클러스터 내부 엔드포인트 |
+| **`QDRANT_API_KEY`** | *(Secret 관리)* | Qdrant REST/gRPC 인증 API Key |
+| `DATABASE_URL` | `postgresql://postgres:...@postgres-service.infra.svc.cluster.local:5432/homelab_db` | PostgreSQL 연결 URI (공유 메타데이터 조회용) |
+
+### 3) `my-space-frontend` (`frontend-secret`)
+환경변수는 Kubernetes Secret `frontend-secret`([`k8s/apps/frontend/.env.frontend`](file:///Users/limkeunhyeok/workspace/homelab-infra/k8s/apps/frontend/.env.frontend))을 통해 주입됩니다.
 
 | 키 이름 | 기본값 / 현재값 | 설명 |
 | :--- | :--- | :--- |
-| `VITE_API_BASE_URL` | `https://api.homelab.local` | 프론트엔드가 호출할 백엔드 REST API 베이스 URL |
+| `VITE_API_BASE_URL` | `https://api.homelab.local` | 프론트엔드가 호출할 메인 REST API 베이스 URL |
 | `VITE_BACKEND_URL` | `https://api.homelab.local` | 프론트엔드 백엔드 통신 호스트 URL |
 | `VITE_APP_ENV` | `production` | 애플리케이션 실행 환경 |
-
-> 프론트엔드 컨테이너 기동 시 `docker-entrypoint.d/40-generate-env.sh`가 `VITE_*` 환경변수를 읽어 브라우저 런타임용 `/usr/share/nginx/html/env-config.js`를 동적으로 생성합니다.
 
 ---
 
 ## 4. 프로브 및 장애 감지 (Health Probes)
 
-| 서비스 | 프로브 종류 | 경로 | 초기 지연 (InitialDelay) | 검사 주기 (Period) | 타임아웃 / 임계치 |
+| 서비스 | 프로브 종류 | 경로 | 초기 지연 | 검사 주기 | 타임아웃 / 임계치 |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **backend** | Readiness Probe | `/health` (Port 3000) | 5초 | 10초 | 3초 / 실패 3회 |
-| **backend** | Liveness Probe | `/health` (Port 3000) | 15초 | 20초 | 3초 / 실패 3회 |
-| **frontend** | Readiness Probe | `/` (Port 80) | 3초 | 10초 | - |
-| **frontend** | Liveness Probe | `/` (Port 80) | 10초 | 15초 | - |
-
+| **`my-space-api`** | Readiness Probe | `/health` (Port 3000) | 5초 | 10초 | 3초 / 실패 3회 |
+| **`my-space-api`** | Liveness Probe | `/health` (Port 3000) | 15초 | 20초 | 3초 / 실패 3회 |
+| **`my-space-ai`** | Readiness Probe | `/health` (Port 3000) | 5초 | 10초 | 3초 / 실패 3회 |
+| **`my-space-ai`** | Liveness Probe | `/health` (Port 3000) | 15초 | 20초 | 3초 / 실패 3회 |
+| **`my-space-frontend`** | Readiness Probe | `/` (Port 80) | 3초 | 10초 | 3초 / 실패 3회 |
+| **`my-space-frontend`** | Liveness Probe | `/` (Port 80) | 10초 | 15초 | 3초 / 실패 3회 |
 
 ---
 
 ## 5. 개발자 운영 런북 및 모니터링
 
-### 1) 실시간 로그 및 리소스 사용량 점검
+### 1) 실시간 로그 확인
 ```bash
-# 백엔드 로그 실시간 확인
-kubectl logs -n apps deploy/my-space-backend -f
+# 메인 API 서버 로그
+kubectl logs -n apps deploy/my-space-api -f
 
-# 프론트엔드 로그 실시간 확인
+# AI 워크스페이스 서버 로그
+kubectl logs -n apps deploy/my-space-ai -f
+
+# 프론트엔드 로그
 kubectl logs -n apps deploy/my-space-frontend -f
-
-# 실제 CPU 및 메모리 점유율 확인
-kubectl top pods -n apps
 ```
 
 ### 2) 파드 재기동 (새 이미지 반영)
-`imagePullPolicy: Always`가 설정되어 있으므로, Docker Hub에 새 이미지를 푸시한 후 파드를 재기동하면 즉시 새 이미지를 당겨옵니다:
 ```bash
-kubectl rollout restart deploy/my-space-backend -n apps
+kubectl rollout restart deploy/my-space-api -n apps
+kubectl rollout restart deploy/my-space-ai -n apps
 kubectl rollout restart deploy/my-space-frontend -n apps
 ```
-
-### 3) 로컬 접속을 위한 hosts 등록
-맥북 개발 머신에서 도메인 접속이 안 될 때:
-```bash
-sudo ./scripts/setup-hosts.sh
-```
-
-### 4) Grafana 통합 관제 대시보드 (Observability)
-`my-space` 애플리케이션의 실시간 CPU/메모리 사용량, 재기동 횟수, 네트워크 I/O, 실시간 백엔드 로그는 Grafana 대시보드에서 통합 관제할 수 있습니다:
-- **접속 URL**: [`https://grafana.homelab.local/d/my-space-overview/my-space-application-observability`](https://grafana.homelab.local/d/my-space-overview/my-space-application-observability)
-- **대시보드 폴더**: `Applications` ➡️ `My Space Application Observability`
-

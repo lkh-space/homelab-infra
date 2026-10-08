@@ -1,34 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-space-backend
+  name: my-space-ai
   namespace: apps
   labels:
-    app: my-space-backend
-    app.kubernetes.io/name: my-space-backend
+    app: my-space-ai
+    app.kubernetes.io/name: my-space-ai
     app.kubernetes.io/part-of: homelab-apps
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-space-backend
+      app: my-space-ai
   template:
     metadata:
       labels:
-        app: my-space-backend
+        app: my-space-ai
     spec:
       imagePullSecrets:
         - name: dockerhub-secret
       containers:
-        - name: backend
-          image: chungdaeking/my-space-backend:latest
+        - name: ai
+          image: chungdaeking/my-space-ai:latest
           imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000
           envFrom:
             - secretRef:
-                name: backend-secret
+                name: ai-secret
           resources:
             requests:
               cpu: 50m
@@ -52,4 +52,3 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3
-

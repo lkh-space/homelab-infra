@@ -53,6 +53,11 @@ kubectl create secret generic opensearch-secret --from-env-file=k8s/opensearch/.
 kubectl create secret generic rabbitmq-secret --from-env-file=k8s/rabbitmq/.env.rabbitmq -n infra --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic redis-secret --from-env-file=k8s/redis/.env.redis -n infra --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic qdrant-secret --from-env-file=k8s/qdrant/.env.qdrant -n infra --dry-run=client -o yaml | kubectl apply -f -
+
+# 3. 애플리케이션(apps) 시크릿 등록
+kubectl create secret generic api-secret --from-env-file=k8s/apps/api/.env.api -n apps --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic ai-secret --from-env-file=k8s/apps/ai/.env.ai -n apps --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic frontend-secret --from-env-file=k8s/apps/frontend/.env.frontend -n apps --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ### 3.2 매니페스트 전체 적용

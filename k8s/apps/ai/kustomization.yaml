@@ -6,10 +6,8 @@ namespace: apps
 resources:
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
 
 images:
-  - name: chungdaeking/my-space-backend
-    newName: chungdaeking/my-space-backend
-    newTag: sha-8aba10c
-
+  - name: chungdaeking/my-space-ai
+    newName: chungdaeking/my-space-ai
+    newTag: latest
