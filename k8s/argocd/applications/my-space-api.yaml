@@ -3,6 +3,10 @@ kind: Application
 metadata:
   name: my-space-api
   namespace: argocd
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: my-space-api=chungdaeking/my-space-api
+    argocd-image-updater.argoproj.io/my-space-api.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

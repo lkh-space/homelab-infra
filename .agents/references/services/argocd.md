@@ -80,29 +80,39 @@ kubectl apply --server-side --force-conflicts -k k8s/argocd
 
 ---
 
-## 6. GitOps 애플리케이션 등록 기본 예시
+## 6. GitOps 애플리케이션 등록 명세 (`k8s/argocd/applications/`)
 
-신규 애플리케이션(예: `my-space-backend`)을 배포하려면 아래와 같은 `Application` 매니페스트를 작성하여 적용합니다:
+현재 배포된 애플리케이션 목록:
+- [`my-space-api.yaml`](file:///Users/limkeunhyeok/workspace/homelab-infra/k8s/argocd/applications/my-space-api.yaml) (경로: `k8s/apps/api`)
+- [`my-space-ai.yaml`](file:///Users/limkeunhyeok/workspace/homelab-infra/k8s/argocd/applications/my-space-ai.yaml) (경로: `k8s/apps/ai`)
+- [`my-space-frontend.yaml`](file:///Users/limkeunhyeok/workspace/homelab-infra/k8s/argocd/applications/my-space-frontend.yaml) (경로: `k8s/apps/frontend`)
 
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: my-space-backend
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/your-username/my-space-backend.git
-    targetRevision: main
-    path: k8s
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: backend
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-```
+---
+
+## 7. ArgoCD Image Updater (Git 커밋 없는 무충돌 자동 배포)
+
+- **역할**: Docker Hub 레지스트리를 주기적으로 감시하여, 새 도커 이미지가 푸시되면 **Git에 커밋하지 않고(write-back-method: argocd)** 파드를 자동으로 롤아웃 업데이트하는 컨트롤러.
+- **매니페스트 경로**: `k8s/argocd/image-updater.yaml` (v0.12.2)
+- **컨테이너 이미지**: `quay.io/argoprojlabs/argocd-image-updater:v0.12.2`
+- **핵심 장점**:
+  - GitHub Actions 봇이 `homelab-infra`에 Git 커밋을 푸시할 필요가 전혀 없음 ➡️ **Git 충돌/꼬임 영구 차단 (0%)**
+  - Git 히스토리가 불필요한 이미지 태그 커밋 없이 순수 인프라 변경 내역만 깨끗하게 유지됨.
+- **Application 어노테이션 명세**:
+  ```yaml
+  metadata:
+    annotations:
+      # 감시할 대상 이미지 alias 지정
+      argocd-image-updater.argoproj.io/image-list: my-space-api=chungdaeking/my-space-api
+      # 업데이트 전략: latest (빌드 날짜 기준 가장 최신 태그 감지)
+      argocd-image-updater.argoproj.io/my-space-api.update-strategy: latest
+      # Git 커밋 방지 (ArgoCD 파라미터 오버라이드 사용)
+      argocd-image-updater.argoproj.io/write-back-method: argocd
+  ```
+- **상태 및 로그 점검**:
+  ```bash
+  # Image Updater 파드 상태
+  kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-image-updater
+  
+  # 실시간 이미지 감시 및 롤아웃 로그 확인
+  kubectl logs -n argocd -l app.kubernetes.io/name=argocd-image-updater -f
+  ```
