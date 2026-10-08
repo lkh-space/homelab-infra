@@ -10,4 +10,4 @@ resources:
 images:
   - name: chungdaeking/my-space-ai
     newName: chungdaeking/my-space-ai
-    newTag: latest
+    newTag: sha-f308106
