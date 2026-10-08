@@ -7,8 +7,3 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-
-images:
-  - name: chungdaeking/my-space-api
-    newName: chungdaeking/my-space-api
-    newTag: sha-e9f5993

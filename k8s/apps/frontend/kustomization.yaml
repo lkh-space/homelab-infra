@@ -8,8 +8,3 @@ resources:
   - service.yaml
   - ingress.yaml
 
-images:
-  - name: chungdaeking/my-space-frontend
-    newName: chungdaeking/my-space-frontend
-    newTag: sha-e4f95ac
-

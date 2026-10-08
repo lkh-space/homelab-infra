@@ -6,8 +6,3 @@ namespace: apps
 resources:
   - deployment.yaml
   - service.yaml
-
-images:
-  - name: chungdaeking/my-space-ai
-    newName: chungdaeking/my-space-ai
-    newTag: sha-e9f5993
