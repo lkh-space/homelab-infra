@@ -31,7 +31,7 @@
 | **컨테이너 포트** | `3000` (Node.js) | `3000` (Node.js) | `80` (Nginx) |
 | **TLS 인증서 Secret** | `backend-tls` (cert-manager 자동 갱신) | - (내부 평문 통신) | `frontend-tls` (cert-manager 자동 갱신) |
 | **주요 엔드포인트** | - Swagger UI: `/docs`<br>- Health: `/health`<br>- Version: `/version` | - Health: `/health`<br>- AI Query: `/ai/query`<br>- Embedding: `/ai/embed` | - Web App: `/` |
-| **인증 게이트웨이** | `apps-authelia-forwardauth` 미들웨어 적용 | 내부 통신 전용 (게이트웨이 우회/보안 격리) | `apps-authelia-forwardauth` 미들웨어 적용 |
+| **인증 게이트웨이** | `apps-authelia-forwardauth`, `apps-forward-auth-secret` 미들웨어 체인 적용 | 내부 통신 전용 (게이트웨이 우회/보안 격리) | `apps-authelia-forwardauth`, `apps-forward-auth-secret` 미들웨어 체인 적용 |
 
 ---
 
@@ -60,7 +60,8 @@
 | `OPENSEARCH_USERNAME` | `admin` | OpenSearch 관리자 계정 |
 | `OPENSEARCH_PASSWORD` | *(Secret 관리)* | OpenSearch 비밀번호 |
 | `OPENSEARCH_REJECT_UNAUTHORIZED` | `false` | 사설 TLS 인증서 무시 옵션 |
-| `OPENSEARCH_INDEX_DOCS` | `markdown-documents` | 마크다운 문서 검색 색인 인덱스명 |
+| `CORS_ORIGINS` | `https://my-space.homelab.local,https://api.homelab.local` | 브라우저 교차 출처(CORS) 허용 도메인 목록 (쉼표 구분) |
+| `AUTH_FORWARDED_SECRET` | *(Secret 관리)* | 리버스 프록시(`x-forwarded-auth-secret`) 검증용 64자리 공유 시크릿 |
 | **`AI_SERVICE_URL`** | **`http://my-space-ai.apps.svc.cluster.local:3000`** | **내부 AI 워크스페이스 마이크로서비스 호출 엔드포인트** |
 
 ### 2) `my-space-ai` (`ai-secret`)
@@ -78,6 +79,8 @@
 | **`QDRANT_URL`** | **`http://qdrant-service.infra.svc.cluster.local:6333`** | Qdrant Vector DB 클러스터 내부 엔드포인트 |
 | **`QDRANT_API_KEY`** | *(Secret 관리)* | Qdrant REST/gRPC 인증 API Key |
 | `DATABASE_URL` | `postgresql://postgres:...@postgres-service.infra.svc.cluster.local:5432/homelab_db` | PostgreSQL 연결 URI (공유 메타데이터 조회용) |
+| `CORS_ORIGINS` | `https://my-space.homelab.local,https://api.homelab.local` | 브라우저 교차 출처(CORS) 허용 도메인 목록 (쉼표 구분) |
+| `AUTH_FORWARDED_SECRET` | *(Secret 관리)* | 리버스 프록시(`x-forwarded-auth-secret`) 검증용 64자리 공유 시크릿 |
 
 ### 3) `my-space-frontend` (`frontend-secret`)
 환경변수는 Kubernetes Secret `frontend-secret`([`k8s/apps/frontend/.env.frontend`](file:///Users/limkeunhyeok/workspace/homelab-infra/k8s/apps/frontend/.env.frontend))을 통해 주입됩니다.
