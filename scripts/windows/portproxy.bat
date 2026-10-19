@@ -25,7 +25,7 @@ echo ========================================================
 
 :: 2. WSL2 실행 및 현재 내부 IP 자동 감지 (IP 변경 완벽 대응)
 echo.
-echo [1/3] WSL2(우분투)를 깨우고 내부 가상 IP를 조회 중...
+echo [1/4] WSL2(우분투)를 깨우고 내부 가상 IP를 조회 중...
 for /f "tokens=1" %%i in ('wsl hostname -I') do set WSL_IP=%%i
 
 if "%WSL_IP%"=="" (
@@ -36,16 +36,22 @@ if "%WSL_IP%"=="" (
 
 echo [성공] 감지된 WSL2 내부 IP: %WSL_IP%
 
-:: 3. 윈도우 방화벽 인바운드 규칙 보장 (6443, 22, 80, 443, 30900, 30901)
+:: 3. WSL2 내부 k3s 서비스 자동 기동 (root 권한으로 무암호 실행)
 echo.
-echo [2/3] Windows 방화벽 포트 허용 규칙 등록 중...
+echo [2/4] WSL2 내부 k3s 서비스를 기동 중...
+wsl -u root systemctl start k3s
+echo [성공] k3s 서비스 기동 완료
+
+:: 4. 윈도우 방화벽 인바운드 규칙 보장 (6443, 22, 80, 443, 30900, 30901)
+echo.
+echo [3/4] Windows 방화벽 포트 허용 규칙 등록 중...
 netsh advfirewall firewall delete rule name="Homelab_WSL_Ports" >nul 2>&1
 netsh advfirewall firewall add rule name="Homelab_WSL_Ports" dir=in action=allow protocol=TCP localport=6443,22,80,443,30900,30901 >nul 2>&1
 echo [성공] 방화벽 포트 등록 완료 (6443, 22, 80, 443, 30900, 30901)
 
-:: 4. netsh portproxy 등록 (외부 -> WSL2 전달)
+:: 5. netsh portproxy 등록 (외부 -> WSL2 전달)
 echo.
-echo [3/3] 포트포워딩(PortProxy) 재등록 중...
+echo [4/4] 포트포워딩(PortProxy) 재등록 중...
 netsh interface portproxy reset >nul 2>&1
 
 set PORTS=6443 22 80 443 30900 30901
