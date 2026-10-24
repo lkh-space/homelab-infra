@@ -40,7 +40,8 @@ echo [성공] 감지된 WSL2 내부 IP: %WSL_IP%
 echo.
 echo [2/4] WSL2 내부 k3s 서비스를 기동 중...
 wsl -u root systemctl start k3s
-echo [성공] k3s 서비스 기동 완료
+echo [성공] k3s 서비스 기동 완료 (런타임 초기화 및 안정화 10초 대기 중...)
+timeout /t 10 /nobreak >nul
 
 :: 4. 윈도우 방화벽 인바운드 규칙 보장 (6443, 22, 80, 443, 30900, 30901)
 echo.

@@ -128,29 +128,44 @@ sleep_all() {
 }
 
 # ------------------------------------------------------------------------------
-# 5. 전체 깨우기 (Wake All)
+# 5. 전체 깨우기 (Wake All - Staged Wakeup)
 # ------------------------------------------------------------------------------
 wake_all() {
   echo ""
-  log_info "☀️  [Wake All] 모든 인프라와 애플리케이션을 순차적으로 기동합니다..."
+  log_info "☀️  [Wake All] 모든 인프라와 애플리케이션을 단계별로 안전하게 순차 기동합니다..."
   
-  # 1. 기본 인프라 기동
-  log_info "🚀 기본 인프라 서비스 기동 (Postgres, Redis, RabbitMQ, MinIO, Authelia)..."
+  # 0. API 서버 준비 상태 점검
+  log_info "🔍 Kubernetes API 서버 응답 확인..."
+  if ! kubectl get nodes >/dev/null 2>&1; then
+    log_error "클러스터 API 서버에 연결할 수 없습니다. Windows에서 portproxy.bat 실행 상태를 먼저 확인하세요."
+    exit 1
+  fi
+
+  # 1단계: 기본 인프라 기동 (Postgres, Redis, RabbitMQ, MinIO, Authelia)
+  log_info "🚀 [1/4단계] 기본 인프라 서비스 기동 (Postgres, Redis, RabbitMQ, MinIO, Authelia)..."
   kubectl scale deployment postgres minio authelia --replicas=1 -n infra
   kubectl scale statefulset rabbitmq redis --replicas=1 -n infra
+  log_info "⏳ 코어 인프라 안정화 대기 (7초)..."
+  sleep 7
 
-  # 2. 모니터링 및 KubeView 기동
-  log_info "🚀 모니터링 및 관리 대시보드 기동 (Grafana, Loki, Prometheus, KubeView)..."
-  kubectl scale deployment kubeview prometheus kube-state-metrics loki grafana --replicas=1 -n infra
-
-  # 3. Heavy 서비스 기동 (Mongo 3노드 포함)
+  # 2단계: Heavy 미들웨어 기동 (Mongo 3노드, OpenSearch)
+  log_info "🚀 [2/4단계] Heavy 데이터 미들웨어 기동 (MongoDB 3노드, OpenSearch)..."
   heavy_on
+  log_info "⏳ Heavy 미들웨어 정족수(Quorum) 확보 대기 (10초)..."
+  sleep 10
 
-  # 4. Apps 기동
+  # 3단계: 모니터링 및 KubeView 기동
+  log_info "🚀 [3/4단계] 모니터링 및 관리 대시보드 기동 (Grafana, Loki, Prometheus, KubeView)..."
+  kubectl scale deployment kubeview prometheus kube-state-metrics loki grafana --replicas=1 -n infra
+  log_info "⏳ 모니터링 스택 준비 대기 (5초)..."
+  sleep 5
+
+  # 4단계: My Space 애플리케이션 기동 (API, AI, Frontend)
+  log_info "🚀 [4/4단계] My Space 애플리케이션 기동 (API, AI, Frontend)..."
   apps_on
 
   echo ""
-  log_success "✨ 모든 서비스 기동 완료! 파드가 완전히 준비되기까지 1~2분이 소요될 수 있습니다."
+  log_success "✨ 전체 서비스 단계별 기동 완료! 파드가 완전히 준비되기까지 약 1~2분이 소요됩니다."
 }
 
 # ------------------------------------------------------------------------------

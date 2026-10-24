@@ -139,3 +139,39 @@ curl -k -I https://my-space.homelab.local
 ### Q2. 인그레스 도메인(`*.homelab.local`)이 접속되지 않습니다.
 - **원인**: 맥북의 `/etc/hosts` 설정이 누락되었거나 호스트 IP가 변경됨.
 - **조치**: MacBook에서 `make hosts` 실행 (`sudo ./scripts/setup-hosts.sh 192.168.0.10`).
+
+### Q3. 부팅 직후 `make wake` 실행 시 `Unable to connect: EOF` 또는 OpenLens 연결 끊김 발생
+- **원인**: 부팅 직후 k3s가 이전 세션의 고아 컨테이너/볼륨을 정리(Reconciliation)하는 초기화 과정 중에 18개 파드 일괄 스케일 명령이 쏟아져 내부 RPC 소켓이 일시 정체됨.
+- **조치**: 스크립트에 적용된 단계별 순차 기동(`Staged Wakeup`)으로 자동 해결되었으며, 발생 시 약 1분 후 `kubectl get nodes`를 재확인하면 자동 안정화됩니다.
+
+---
+
+## 4. 스크립트 개선 및 단계별 순차 기동(Staged Wakeup) 적용 배경
+
+### 4.1 문제 배경 및 원인 분석
+- **현상**: 호스트 재부팅 후 `portproxy.bat`을 실행하고 `kubectl get nodes`가 Ready로 뜬 직후 `make wake`를 실행하면 `Unable to connect to the server: EOF` 에러가 발생하고 OpenLens 및 API 연결이 일시적으로 끊어짐.
+- **k3s 저널 로그 분석**:
+  ```text
+  Cleaned up orphaned pod volumes dir ...
+  ContainerStatus from runtime service failed ... not found
+  pod_container_deletor.go ... DeleteContainer returned error ... not found
+  ```
+- **근본 원인**:
+  1. Windows가 재부팅되면 containerd 런타임의 메모리에 상주하던 이전 컨테이너 ID들이 일제히 무효화됩니다.
+  2. k3s 데몬이 켜진 직후 약 1~2분간 Kubelet은 이전 세션의 고아 컨테이너/볼륨 잔재를 청소하는 가비지 컬렉션(Reconciliation)을 집중 수행합니다.
+  3. 이 초기 정리가 완료되기 전에 18개 컨테이너 파드를 0.1초 만에 동시 스케일 업 요청하면서, containerd와 Kubelet 간의 내부 gRPC 통신이 순간적으로 밀려 API 서버가 일시적으로 소켓을 닫아버림(`EOF`).
+
+### 4.2 스크립트 수정 내역
+이러한 부팅 직후의 **초기화 스파이크(Reconciliation Spike)**를 원천 예방하기 위해 아래 2가지 스크립트를 개선했습니다:
+
+1. **`scripts/windows/portproxy.bat`**:
+   - `wsl -u root systemctl start k3s` 직후 `timeout /t 10 /nobreak >nul` 대기를 추가하여, k3s가 이전 부팅 세션 정리를 시작할 수 있는 **10초간의 안정화 골든 타임**을 보장함.
+2. **`scripts/resource-saver.sh` (`make wake`)**:
+   - `wake_all()` 함수 시작 시 API 서버 통신 가능 여부를 사전 검증.
+   - 18개 파드를 한 번에 올리지 않고, **4단계 시간차 지연 기동(Staged Wakeup)**을 적용:
+     - **1단계**: 코어 DB/스토리지 (Postgres, Redis, MinIO, RabbitMQ, Authelia) 기동 ➔ `7초 대기`
+     - **2단계**: Heavy 미들웨어 (MongoDB 3노드, OpenSearch) 기동 ➔ `10초 대기 (정족수 확보)`
+     - **3단계**: 모니터링 스택 (Prometheus, Loki, Grafana, KubeView) 기동 ➔ `5초 대기`
+     - **4단계**: My Space 애플리케이션 (API, AI, Frontend) 최종 기동
+   - **결과**: 메모리/CPU 피크와 런타임 RPC 병목이 완전히 분산되어, 재부팅 직후에도 끊김 없이 부드럽게 모든 서비스가 기동됨.
+

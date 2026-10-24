@@ -14,7 +14,12 @@
   1. 호스트 핑 및 데몬 확인: `ping -c 3 192.168.0.10` 및 `ssh gorloom6425@192.168.0.10 "sudo systemctl status k3s"`
   2. **포트프록시 원클릭 복구**: Windows Desktop에서 `scripts/windows/portproxy.bat` 실행 (6443, 22, 80, 443, 30900, 30901 포트포워딩 자동 재매핑).
   3. **데몬 재기동**: k3s 중지 상태일 경우 WSL2에서 `sudo systemctl restart k3s` 실행.
-  4. **Kubeconfig 재동기화**: 인증서/설정 불일치 시 MacBook에서 `ansible-playbook playbooks/install-k3s.yml` 재실행.
+- **증상 B: 부팅 직후 `make wake` 실행 시 `Unable to connect to the server: EOF` 및 OpenLens `Internal Server Error` 발생**:
+  - **원인**: 재부팅 직후 k3s Kubelet이 containerd의 이전 부팅 세션 고아 컨테이너 및 볼륨 잔재를 청소(Reconciliation)하는 초기화 도중, 18개 파드 일괄 스케일 명령이 쏟아져 런타임 gRPC 소켓 정체로 API 서버 연결이 일시 차단됨.
+  - **조치**:
+    1. 약 1분 대기 후 `kubectl get nodes`로 k3s API 안정화 확인.
+    2. 개선된 4단계 순차 기동 스크립트(`scripts/resource-saver.sh wake`)를 실행하여 단계별(코어 DB ➔ Heavy 미들웨어 ➔ 모니터링 ➔ Apps) 부하 분산 기동.
+    3. `portproxy.bat`에 적용된 k3s 기동 후 10초 안정화 대기 활용.
 
 ---
 
