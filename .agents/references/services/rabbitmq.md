@@ -68,3 +68,17 @@ kubectl port-forward -n infra svc/rabbitmq-service 5672:5672 15672:15672
   kubectl exec -n infra rabbitmq-0 -- rabbitmqctl add_user <username> <password>
   kubectl exec -n infra rabbitmq-0 -- rabbitmqctl set_permissions -p <vhost_name> <username> ".*" ".*" ".*"
   ```
+
+### 4.3 큐 파라미터 불일치(`406 PRECONDITION_FAILED`) 해결
+애플리케이션에서 Dead Letter Exchange(DLX) 등 큐 인수가 변경되었으나 브로커에 이전 옵션의 큐가 남아있어 연결이 거부되는 경우:
+```bash
+# 1. 적체된 메시지 수 확인
+kubectl exec -n infra rabbitmq-0 -- rabbitmqctl list_queues name messages
+
+# 2. 충돌 큐 삭제 (주의: 메시지가 함께 삭제되므로 필요 시 백업)
+kubectl exec -n infra rabbitmq-0 -- rabbitmqctl delete_queue markdown-indexing-queue
+
+# 3. 애플리케이션 파드 재기동 (새 인수로 큐 자동 재생성)
+kubectl rollout restart deployment my-space-ai my-space-api -n apps
+```
+

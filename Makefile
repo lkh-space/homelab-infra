@@ -260,11 +260,17 @@ secrets:
 	@if [ -f k8s/grafana/.env.grafana ]; then \
 		kubectl create secret generic grafana-secret --from-env-file=k8s/grafana/.env.grafana -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - ; \
 	fi
-	@if [ -f k8s/apps/backend/.env.backend ]; then \
-		kubectl create secret generic backend-secret --from-env-file=k8s/apps/backend/.env.backend -n apps --dry-run=client -o yaml | kubectl apply -f - ; \
+	@if [ -f k8s/apps/api/.env.api ]; then \
+		kubectl create secret generic api-secret --from-env-file=k8s/apps/api/.env.api -n apps --dry-run=client -o yaml | kubectl apply -f - ; \
+	fi
+	@if [ -f k8s/apps/ai/.env.ai ]; then \
+		kubectl create secret generic ai-secret --from-env-file=k8s/apps/ai/.env.ai -n apps --dry-run=client -o yaml | kubectl apply -f - ; \
 	fi
 	@if [ -f k8s/apps/frontend/.env.frontend ]; then \
 		kubectl create secret generic frontend-secret --from-env-file=k8s/apps/frontend/.env.frontend -n apps --dry-run=client -o yaml | kubectl apply -f - ; \
+	fi
+	@if [ -f k8s/apps/forward-auth-secret-middleware.yaml ]; then \
+		kubectl apply -f k8s/apps/forward-auth-secret-middleware.yaml ; \
 	fi
 	@echo "$(GREEN)✔ 전체 서비스 Secret 등록/갱신 완료$(RESET)"
 
@@ -291,6 +297,9 @@ deploy:
 	@kubectl apply -f k8s/grafana/grafana-dashboards.yaml
 	@kubectl apply -f k8s/grafana/grafana.yaml
 	@kubectl apply -f k8s/ingress/infra-ingress.yaml
+	@if [ -f k8s/apps/forward-auth-secret-middleware.yaml ]; then \
+		kubectl apply -f k8s/apps/forward-auth-secret-middleware.yaml ; \
+	fi
 	@echo "$(GREEN)✔ 전체 매니페스트 배포 완료$(RESET)"
 
 hosts:
