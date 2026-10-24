@@ -238,3 +238,6 @@ kubectl port-forward -n infra svc/opensearch-dashboards-service 5601:5601
    ```bash
    ansible-playbook playbooks/install-k3s.yml
    ```
+6. **Windows 호스트 예기치 않은 종료/재부팅 원인 진단**:
+   - Windows Update 또는 비정상 셧다운 여부 판별 시 [`troubleshooting.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/troubleshooting.md)의 `1.6 Windows 호스트 비정상/예기치 않은 꺼짐 및 재부팅 원인 진단 가이드`를 참조하십시오.
+
