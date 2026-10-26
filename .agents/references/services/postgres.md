@@ -17,10 +17,12 @@
   - 요청 용량: 50Gi
   - StorageClass: `local-path`
   - 마운트 경로: `/var/lib/postgresql`
-- **서비스 (ClusterIP)**:
+- **서비스 (NodePort)**:
   - 서비스 이름: `postgres-service`
-  - 내부 포트: 5432
+  - 내부 포트: `5432`
+  - 노드 포트: `30432`
   - 클러스터 내부 FQDN: `postgres-service.infra.svc.cluster.local:5432`
+  - 외부/맥북 직접 접근 엔드포인트: `192.168.0.10:5432` 또는 `192.168.0.10:30432` (Windows PortProxy 연동)
 
 ---
 
@@ -51,8 +53,15 @@ kubectl exec -n infra deploy/postgres -- psql -U postgres -d homelab_db -c "SELE
 
 ## 4. 운영 및 관리 런북 (Operations & Runbook)
 
-### 4.1 로컬 개발 포트포워딩
-맥북 로컬에서 NestJS 등의 백엔드 앱 개발 시 로컬 포트 5432로 바인딩:
+### 4.1 로컬 개발 직접 접속 (kubectl port-forward 불필요)
+Windows의 `portproxy.bat` 및 k3s NodePort(`30432`) 연동을 통해, **별도의 `kubectl port-forward` 명령어를 실행할 필요 없이** 맥북 로컬 백엔드(NestJS 등)에서 언제든 항시 직접 연결됩니다:
+```bash
+# 맥북 .env 설정 예시 (5432 또는 30432 모두 지원)
+DB_HOST=192.168.0.10 # 또는 postgres.homelab.local
+DB_PORT=5432        # 또는 30432
+```
+
+*(필요 시 임시 터널링 명령어)*:
 ```bash
 kubectl port-forward -n infra svc/postgres-service 5432:5432
 ```

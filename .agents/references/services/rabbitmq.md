@@ -16,13 +16,14 @@
   - 요청 용량: 5Gi
   - StorageClass: `local-path`
   - 마운트 경로: `/var/lib/rabbitmq`
-- **서비스 (ClusterIP)**:
+- **서비스 (NodePort)**:
   - 서비스 이름: `rabbitmq-service`
-  - **AMQP 프로토콜**: 내부 포트 5672
-  - **관리 웹 콘솔(Management UI)**: 내부 포트 15672
+  - **AMQP 프로토콜**: 내부 포트 `5672`, 노드 포트 `30672`
+  - **관리 웹 콘솔(Management UI)**: 내부 포트 `15672` (Ingress `https://rabbitmq.homelab.local` 제공)
 - **클러스터 내부 FQDN**:
   - AMQP: `rabbitmq-service.infra.svc.cluster.local:5672`
   - Management: `http://rabbitmq-service.infra.svc.cluster.local:15672`
+- **외부/맥북 직접 접근 엔드포인트**: `192.168.0.10:5672` 또는 `192.168.0.10:30672` (Windows PortProxy 연동)
 
 ---
 
@@ -51,11 +52,17 @@ kubectl exec -n infra rabbitmq-0 -- rabbitmqctl list_queues
 
 ## 4. 운영 및 관리 런북 (Operations & Runbook)
 
-### 4.1 로컬 개발 포트포워딩
-맥북 로컬에서 NestJS(Microservices) 개발 및 Web UI 모니터링 시:
+### 4.1 로컬 개발 직접 접속 (kubectl port-forward 불필요)
+Windows의 `portproxy.bat` 및 k3s NodePort(`30672`) 연동을 통해, **별도의 `kubectl port-forward` 명령어를 실행할 필요 없이** 맥북 로컬 백엔드(NestJS 등)에서 언제든 항시 직접 연결됩니다:
+```bash
+# 맥북 .env 설정 예시 (5672 또는 30672 모두 지원)
+RABBITMQ_URL=amqp://admin:<PASSWORD>@192.168.0.10:5672
+```
+- **Web UI**: Ingress를 통해 언제든 브라우저로 `https://rabbitmq.homelab.local` 접속 가능.
+
+*(필요 시 임시 터널링 명령어)*:
 ```bash
 kubectl port-forward -n infra svc/rabbitmq-service 5672:5672 15672:15672
-# 브라우저: http://localhost:15672 (ID: admin, PW: <your-secure-password>)
 ```
 
 ### 4.2 vhost 및 사용자/권한 관리 (향후 확장)

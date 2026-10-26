@@ -188,22 +188,28 @@ kubectl scale statefulset mongodb --replicas=3 -n infra
 
 ---
 
-## 5. 맥북 로컬 개발용 포트포워딩 가이드
+## 5. 맥북 로컬 개발용 직접 접속 및 포트포워딩 가이드
 
-MinIO(NodePort 30900/30901)를 제외한 나머지 서비스는 `ClusterIP`입니다. 맥북 로컬 머신에서 백엔드(NestJS 등)를 실행하며 직접 연결해야 할 때 아래 명령으로 포트포워딩을 실행합니다.
+PostgreSQL, RabbitMQ, MinIO는 **NodePort**와 Windows `portproxy.bat` 연동이 완료되어, **맥북에서 `kubectl port-forward` 명령어 없이 항시 직접 연결**할 수 있습니다.
+
+### 5.1 상시 직접 연결 엔드포인트 (port-forward 불필요)
+맥북 로컬 백엔드(NestJS 등)의 `.env` 파일에 아래와 같이 호스트 IP(`192.168.0.10`)를 지정하면 즉시 연결됩니다:
+
+| 서비스 | 맥북 개발 접속 엔드포인트 | 내부 매핑 설명 |
+| :--- | :--- | :--- |
+| **PostgreSQL** | `192.168.0.10:5432` 또는 `:30432` | Windows 5432 / 30432 ➔ WSL2 NodePort 30432 |
+| **RabbitMQ** | `192.168.0.10:5672` 또는 `:30672` | Windows 5672 / 30672 ➔ WSL2 NodePort 30672 |
+| **MinIO** | `192.168.0.10:30900` (S3) / `:30901` (콘솔) | Windows 30900/30901 ➔ WSL2 NodePort 30900/30901 |
+
+### 5.2 기타 ClusterIP 서비스 임시 포트포워딩 (필요 시)
+Redis, MongoDB, OpenSearch 등 별도 외부 노출이 없는 서비스는 필요 시 아래 명령어로 연결합니다:
 
 ```bash
-# PostgreSQL (로컬 5432 포트 연결)
-kubectl port-forward -n infra svc/postgres-service 5432:5432
-
 # Redis (로컬 6379 포트 연결)
 kubectl port-forward -n infra svc/redis-service 6379:6379
 
 # MongoDB (로컬 27017 포트 연결 - Primary/0번 노드)
 kubectl port-forward -n infra svc/mongodb-service 27017:27017
-
-# RabbitMQ (AMQP 5672 및 Web UI 15672)
-kubectl port-forward -n infra svc/rabbitmq-service 5672:5672 15672:15672
 
 # OpenSearch (로컬 9200) 및 Dashboards (로컬 5601)
 kubectl port-forward -n infra svc/opensearch-service 9200:9200
