@@ -19,14 +19,15 @@
   - StorageClass: `local-path`
   - 마운트 경로: `/qdrant/storage`
   - 영속성: Pod 재기동 및 Scale to 0 복구 시에도 호스트 NVMe SSD 상에 벡터 및 인덱스 데이터 안전 보존
-- **서비스 (ClusterIP)**:
+- **서비스 (NodePort)**:
   - 서비스 이름: `qdrant-service`
   - 포트:
-    - HTTP REST API: `6333` (포트명: `http`)
-    - gRPC API: `6334` (포트명: `grpc`)
+    - HTTP REST API: 내부 `6333`, 노드 포트 `30333` (포트명: `http`)
+    - gRPC API: 내부 `6334`, 노드 포트 `30334` (포트명: `grpc`)
   - 클러스터 내부 FQDN:
     - `http://qdrant-service.infra.svc.cluster.local:6333`
     - `qdrant-service.infra.svc.cluster.local:6334`
+  - 외부/맥북 직접 접근 엔드포인트: `http://192.168.0.10:6333` (HTTP) 및 `192.168.0.10:6334` (gRPC) (Windows PortProxy 연동)
 - **리소스 (Requests / Limits)**:
   - CPU: Request `100m` / Limit `1000m`
   - Memory: Request `256Mi` / Limit `1Gi`
@@ -96,12 +97,18 @@ kubectl exec -n infra qdrant-0 -- curl -s -X DELETE http://localhost:6333/collec
 
 ## 4. 운영 및 관리 런북 (Operations & Runbook)
 
-### 4.1 로컬 개발 포트포워딩
-맥북 로컬에서 `my-space-backend`의 AI Workspace / RAG 모듈 개발 또는 Qdrant 웹 대시보드 접근 시:
+### 4.1 로컬 개발 직접 접속 (kubectl port-forward 불필요)
+Windows의 `portproxy.bat` 및 k3s NodePort(`30333`, `30334`) 연동을 통해, **별도의 `kubectl port-forward` 명령어를 실행할 필요 없이** 맥북 로컬 AI 모듈에서 언제든 항시 직접 연결됩니다:
+```bash
+# 맥북 .env 설정 예시 (6333 또는 30333 모두 지원)
+QDRANT_URL="http://192.168.0.10:6333"
+```
+* **웹 브라우저 대시보드**: `http://192.168.0.10:6333/dashboard` (API Key 입력 후 로그인)
+
+*(필요 시 임시 터널링 명령어)*:
 ```bash
 kubectl port-forward -n infra svc/qdrant-service 6333:6333 6334:6334
 ```
-* 웹 브라우저 대시보드: `http://localhost:6333/dashboard` (API Key 입력 후 로그인)
 
 ### 4.2 Scale to 0 / Scale to 1 (자원 절약 루틴)
 ```bash

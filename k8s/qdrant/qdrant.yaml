@@ -8,13 +8,15 @@ metadata:
     app.kubernetes.io/name: qdrant
     app.kubernetes.io/part-of: homelab-infra
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - port: 6333
       targetPort: 6333
+      nodePort: 30333
       name: http
     - port: 6334
       targetPort: 6334
+      nodePort: 30334
       name: grpc
   selector:
     app: qdrant

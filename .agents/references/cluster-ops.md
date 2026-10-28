@@ -190,7 +190,7 @@ kubectl scale statefulset mongodb --replicas=3 -n infra
 
 ## 5. 맥북 로컬 개발용 직접 접속 및 포트포워딩 가이드
 
-PostgreSQL, RabbitMQ, MinIO는 **NodePort**와 Windows `portproxy.bat` 연동이 완료되어, **맥북에서 `kubectl port-forward` 명령어 없이 항시 직접 연결**할 수 있습니다.
+PostgreSQL, RabbitMQ, Qdrant, MinIO는 **NodePort**와 Windows `portproxy.bat` 연동이 완료되어, **맥북에서 `kubectl port-forward` 명령어 없이 항시 직접 연결**할 수 있습니다.
 
 ### 5.1 상시 직접 연결 엔드포인트 (port-forward 불필요)
 맥북 로컬 백엔드(NestJS 등)의 `.env` 파일에 아래와 같이 호스트 IP(`192.168.0.10`)를 지정하면 즉시 연결됩니다:
@@ -198,7 +198,8 @@ PostgreSQL, RabbitMQ, MinIO는 **NodePort**와 Windows `portproxy.bat` 연동이
 | 서비스 | 맥북 개발 접속 엔드포인트 | 내부 매핑 설명 |
 | :--- | :--- | :--- |
 | **PostgreSQL** | `192.168.0.10:5432` 또는 `:30432` | Windows 5432 / 30432 ➔ WSL2 NodePort 30432 |
-| **RabbitMQ** | `192.168.0.10:5672` 또는 `:30672` | Windows 5672 / 30672 ➔ WSL2 NodePort 30672 |
+| **RabbitMQ** | `192.168.0.10:5672` (AMQP) / `:15672` (UI) | Windows 5672 / 15672 ➔ WSL2 NodePort 30672 / 30572 |
+| **Qdrant** | `http://192.168.0.10:6333` (HTTP) / `:6334` (gRPC) | Windows 6333 / 6334 ➔ WSL2 NodePort 30333 / 30334 |
 | **MinIO** | `192.168.0.10:30900` (S3) / `:30901` (콘솔) | Windows 30900/30901 ➔ WSL2 NodePort 30900/30901 |
 
 ### 5.2 기타 ClusterIP 서비스 임시 포트포워딩 (필요 시)
