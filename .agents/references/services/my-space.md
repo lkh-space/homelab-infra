@@ -45,6 +45,7 @@
 | `NODE_ENV` | `production` | Node.js 런타임 모드 |
 | `PORT` | `3000` | 애플리케이션 수신 포트 |
 | `IS_LOCAL` | `false` | 로컬 실행 여부 플래그 |
+| `SWAGGER_ENABLED` | `true` | Swagger UI (`/docs`) 활성화 여부 (`true` / `false`) |
 | `LOG_LEVEL` | `info` | 애플리케이션 로그 레벨 |
 | `DATABASE_URL` | `postgresql://postgres:...@postgres-service.infra.svc.cluster.local:5432/homelab_db` | PostgreSQL 연결 URI (Prisma) |
 | `MINIO_ENDPOINT` | `http://minio-service.infra.svc.cluster.local:9000` | MinIO 클러스터 내부 S3 엔드포인트 |
@@ -74,6 +75,7 @@
 | `NODE_ENV` | `production` | Node.js 런타임 모드 |
 | `PORT` | `3000` | 애플리케이션 수신 포트 |
 | `IS_LOCAL` | `false` | 로컬 실행 여부 플래그 |
+| `SWAGGER_ENABLED` | `true` | Swagger UI (`/docs`) 활성화 여부 (`true` / `false`) |
 | `LOG_LEVEL` | `info` | 애플리케이션 로그 레벨 |
 | **`GEMINI_API_KEY`** | `your_actual_gemini_api_key_here` | Google Gemini API 인증 키 (필수) |
 | `GEMINI_LLM_MODEL` | `gemini-1.5-flash` | 기본 LLM 생성 모델 |
