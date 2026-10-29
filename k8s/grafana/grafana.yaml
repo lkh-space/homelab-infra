@@ -94,8 +94,12 @@ spec:
           configMap:
             name: grafana-dashboards-config
         - name: dashboard-definitions-volume
-          configMap:
-            name: grafana-dashboard-my-space
+          projected:
+            sources:
+              - configMap:
+                  name: grafana-dashboard-my-space
+              - configMap:
+                  name: grafana-dashboard-infra-anomaly
 ---
 apiVersion: v1
 kind: Service

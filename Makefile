@@ -304,6 +304,8 @@ deploy:
 	@kubectl apply -f k8s/alloy/alloy.yaml
 	@kubectl apply -f k8s/grafana/grafana-datasources.yaml
 	@kubectl apply -f k8s/grafana/grafana-dashboards.yaml
+	@kubectl apply -f k8s/grafana/my-space-dashboard.yaml
+	@kubectl apply -f k8s/grafana/infra-anomaly-dashboard.yaml
 	@kubectl apply -f k8s/grafana/grafana.yaml
 	@kubectl apply -f k8s/ingress/infra-ingress.yaml
 	@if [ -f k8s/apps/forward-auth-secret-middleware.yaml ]; then \

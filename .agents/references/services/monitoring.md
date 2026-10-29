@@ -107,9 +107,12 @@ Homelab 리소스(디스크 및 메모리)의 안정적인 운영을 위해 컴�
 - **관리자 계정**: `admin`
 - **비밀번호**: `<your-secure-password>` (환경변수 `k8s/grafana/.env.grafana`에 정의)
 
-### 5.2 사전 프로비저닝 데이터 소스
+### 5.2 사전 프로비저닝 데이터 소스 및 대시보드
 - **Prometheus** (기본): `http://prometheus-service.infra.svc.cluster.local:9090`
 - **Loki**: `http://loki-service.infra.svc.cluster.local:3100`
+- **내장 대시보드 (`Applications` 폴더)**:
+  - **My Space Application Observability** (`my-space-overview`): `k8s/grafana/my-space-dashboard.yaml`
+  - **Homelab Infra - 이상 징후 탐지 및 로그 인텔리전스** (`infra-anomaly-detection`): `k8s/grafana/infra-anomaly-dashboard.yaml` (MongoDB JSON 파싱/슬로우쿼리/Dump 트래픽 스파이크 및 8대 인프라 에러·보안 이상 징후 통합 감시)
 
 ### 5.3 Explore 메뉴에서 파드 로그 조회 예시
 Grafana 좌측 메뉴의 **Explore**로 이동하여 데이터 소스를 **Loki**로 선택 후 다음과 같이 LogQL 질의를 수행합니다:

@@ -1,0 +1,575 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-infra-anomaly
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: monitoring
+data:
+  infra-anomaly-detection.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "description": "Homelab 8대 인프라(MongoDB, PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO, Qdrant, Authelia) 이상 징후(Slow Query, Dump/대량 조회, 인증 실패, 에러 로그) 통합 탐지 대시보드",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "title": "🚨 1. 인프라 이상 징후 요약 (Real-time Anomaly Summary)",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "description": "선택한 시간 범위 동안 infra 네임스페이스에서 발생한 컨테이너 비정상 재시작(CrashLoop/OOM 등) 횟수",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 1 },
+                  { "color": "red", "value": 3 }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+          "id": 1,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum( round(increase(kube_pod_container_status_restarts_total{namespace=\"infra\"}[$__range])) ) or vector(0)",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "파드 비정상 재시작 (구간 내)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "전체 인프라에서 발생한 Error / Fatal / Panic / Exception 등급 로그 총합",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 1 },
+                  { "color": "red", "value": 10 }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+          "id": 2,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["sum"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum(count_over_time({namespace=\"infra\", app=~\"$service\"} |~ \"(?i)(\\\"s\\\":\\\"[EF]\\\"|\\\\b(error|fatal|panic|exception|precondition_failed)\\\\b)\" != \"health\" [$__auto]))",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "치명적 에러 로그 (Error/Fatal)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "DB 및 SSO 게이트웨이에서 발생한 인증 실패(Auth Failed, WRONGPASS, Unauthorized, AccessDenied) 건수",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+          "id": 3,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["sum"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum(count_over_time({namespace=\"infra\", app=~\"$service\"} |~ \"(?i)(authentication failed|auth failed|wrongpass|noauth|access_refused|accessdenied|unsuccessful 1fa|unauthorized)\" [$__auto]))",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "보안/인증 실패 (Auth Fail)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "MongoDB에서 발생한 Slow Query(100ms 초과), COLLSCAN(풀 스캔), 또는 비정상 종료/경고(s=W/E/F) 건수",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+          "id": 4,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["sum"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum(count_over_time({namespace=\"infra\", app=\"mongodb\"} |~ \"(\\\"s\\\":\\\"[WEF]\\\"|Slow query|COLLSCAN|planSummary)\" [$__auto]))",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "MongoDB 이상/슬로우 쿼리",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "description": "현재 Running 상태인 인프라 파드 총 개수",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "orange", "value": 5 },
+                  { "color": "green", "value": 10 }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+          "id": 5,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(kube_pod_status_phase{namespace=\"infra\", phase=\"Running\"}) or vector(0)",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "활성 인프라 파드 수 (Running Pods)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "서비스별로 발생하는 경고(Warn) 및 에러(Error) 로그의 시간대별 추이. 특정 시간대에 막대가 치솟으면 해당 서비스에 이상 징후가 발생한 것입니다.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 80,
+                "lineWidth": 1,
+                "stacking": { "group": "A", "mode": "normal" }
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 7, "w": 24, "x": 0, "y": 5 },
+          "id": 6,
+          "options": {
+            "legend": { "calcs": ["sum", "max"], "displayMode": "table", "placement": "right" },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum by (app) (count_over_time({namespace=\"infra\", app=~\"$service\"} |~ \"(?i)(\\\"s\\\":\\\"[WEF]\\\"|\\\\b(error|warn|warning|fatal|panic|exception|fail|failed|denied|wrongpass|collscan)\\\\b)\" != \"health\" [$__auto]))",
+              "legendFormat": "{{app}}",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "📊 인프라 서비스별 이상 로그(Warn/Error/SlowQuery) 발생 타임라인",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+          "id": 101,
+          "title": "📦 2. 대량 데이터 반출(Dump) 및 리소스 스파이크 탐지 (Prometheus Metrics)",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "description": "mongodump, pg_dump, S3 대량 다운로드 등이 실행되면 해당 DB 파드의 송신(Transmit) 네트워크 대역폭이 평소(수 KB/s) 대비 수 MB/s 이상으로 급증합니다.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2
+              },
+              "unit": "Bps"
+            }
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+          "id": 7,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (pod) (rate(container_network_transmit_bytes_total{namespace=\"infra\", pod=~\"(mongodb|postgres|minio|opensearch|qdrant|redis|rabbitmq).*\"}[1m]))",
+              "legendFormat": "{{pod}} (Outbound TX)",
+              "refId": "A"
+            }
+          ],
+          "title": "🚨 DB/스토리지 외부 반출 트래픽 급증 탐지 (Dump / 대량 조회 징후)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "description": "풀 스캔(COLLSCAN), 대량 인덱싱, 무거운 쿼리 수행 시 발생하는 파드별 CPU 사용량 스파이크를 탐지합니다.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+          "id": 8,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"infra\", container!=\"\", pod=~\"(mongodb|postgres|minio|opensearch|qdrant|redis|rabbitmq).*\"}[1m]))",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "title": "🔥 데이터 인프라 CPU 스파이크 탐지 (Cores)",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+          "id": 102,
+          "title": "🍃 3. MongoDB (mongod) 정밀 이상 탐지 & 가독성 포맷팅 뷰 (JSON 파싱 적용)",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "MongoDB의 복잡한 중첩 JSON 로그에서 핵심 이상 징후(경고/에러 s=W/E/F, Slow query, COLLSCAN, 인증 실패, 커넥션 이벤트)만 추출하여 사람이 읽기 편한 한 줄 포맷으로 변환한 뷰입니다.",
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 22 },
+          "id": 9,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"infra\", app=\"mongodb\", container=\"mongodb\"} |~ \"(\\\"s\\\":\\\"[WEF]\\\"|Slow query|COLLSCAN|Authentication failed|Unauthorized|connection accepted|end connection)\" |~ \"(?i)$search\" | json | line_format \"[{{.s}}] [{{.c}}] ({{.ctx}}) {{.msg}}{{if .attr_durationMillis}} | ⏱️ {{.attr_durationMillis}}ms{{end}}{{if .attr_ns}} | 📂 ns={{.attr_ns}}{{end}}{{if .attr_planSummary}} | 🔍 plan={{.attr_planSummary}}{{end}}{{if .attr_remote}} | 🌐 client={{.attr_remote}}{{end}}{{if .attr_error}} | ❌ err={{.attr_error}}{{end}}\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "🍃 MongoDB 이상 징후 & 접속/쿼리 요약 뷰 (Slow Query / Auth / Dump 접속 추적)",
+          "type": "logs"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "MongoDB의 모든 JSON 로그를 [심각도] [카테고리] (컨텍스트) 메시지 형태로 깔끔하게 파싱하여 보여주는 전체 스트림입니다.",
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 22 },
+          "id": 10,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"infra\", app=\"mongodb\", container=\"mongodb\"} != \"isMaster\" != \"hello\" |~ \"(?i)$search\" | json | line_format \"[{{.s}}] [{{.c}}] ({{.ctx}}) {{.msg}}{{if .attr_durationMillis}} ({{.attr_durationMillis}}ms){{end}}{{if .attr_ns}} [{{.attr_ns}}]{{end}}{{if .attr_remote}} <- {{.attr_remote}}{{end}}\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "🍃 MongoDB 전체 로그 클린 포맷 뷰 (Raw JSON 제거 & 헬스체크 노이즈 필터링)",
+          "type": "logs"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+          "id": 103,
+          "title": "🐘 4. PostgreSQL / 🐇 RabbitMQ / ⚡ Redis 이상 징후 전용 뷰",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "PostgreSQL의 ERROR, FATAL, PANIC, 인증 실패, 데드락, 쿼리 오류 로그만 필터링합니다.",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 33 },
+          "id": 11,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"infra\", container=\"postgres\"} |~ \"(?i)(error|fatal|panic|warning|authentication failed|deadlock|statement:)\" |~ \"(?i)$search\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "🐘 PostgreSQL 에러 / 인증 실패 / 비정상 쿼리 로그",
+          "type": "logs"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "RabbitMQ(406 PRECONDITION_FAILED, 채널 에러, 인증 실패, 연결 끊김) 및 Redis(WRONGPASS, OOM, 경고) 이상 로그만 모아서 표시합니다.",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 33 },
+          "id": 12,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"infra\", app=~\"rabbitmq|redis\"} |~ \"(?i)(\\\\[error\\\\]|\\\\[warning\\\\]|precondition_failed|access_refused|closed_abruptly|wrongpass|noauth|oom|misconf|warning|error)\" |~ \"(?i)$search\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "🐇 RabbitMQ & ⚡ Redis 브로커/캐시 이상 징후 로그 (406 충돌 / 인증 실패 / OOM)",
+          "type": "logs"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+          "id": 104,
+          "title": "🔍 5. OpenSearch / 🧠 Qdrant / 🪣 MinIO / 🔐 Authelia 보안 및 에러 탐지 뷰",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "OpenSearch 및 Qdrant 벡터 DB에서 발생한 WARN, ERROR, Exception, 슬로우 쿼리, 인증 오류만 필터링합니다.",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 43 },
+          "id": 13,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"infra\", app=~\"opensearch|qdrant\"} |~ \"(?i)(\\\\[warn\\\\]|\\\\[error\\\\]|\\\\[fatal\\\\]|exception|slowlog|unauthorized|forbidden|error|panic)\" != \" readiness \" != \" liveness \" |~ \"(?i)$search\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "🔍 OpenSearch & 🧠 Qdrant 검색/벡터엔진 이상 징후 로그",
+          "type": "logs"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "description": "Authelia SSO 게이트웨이의 로그인 실패/차단 이벤트와 MinIO S3 스토리지의 접근 거부(AccessDenied) 및 에러 로그를 실시간 감시합니다.",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 43 },
+          "id": 14,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"infra\", container=~\"authelia|minio\"} |~ \"(?i)(level=(warning|error)|unsuccessful|denied|unauthorized|forbidden|invalidaccesskeyid|signaturedoesnotmatch|error|fatal)\" |~ \"(?i)$search\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "🔐 Authelia SSO & 🪣 MinIO S3 보안/접근통제 이상 탐지 로그",
+          "type": "logs"
+        }
+      ],
+      "preload": false,
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "tags": ["infra", "anomaly-detection", "security", "loki", "homelab"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+            "datasource": { "type": "loki", "uid": "loki" },
+            "definition": "",
+            "hide": 0,
+            "includeAll": true,
+            "multi": true,
+            "name": "service",
+            "options": [
+              { "selected": false, "text": "mongodb", "value": "mongodb" },
+              { "selected": false, "text": "postgres", "value": "postgres" },
+              { "selected": false, "text": "redis", "value": "redis" },
+              { "selected": false, "text": "rabbitmq", "value": "rabbitmq" },
+              { "selected": false, "text": "opensearch", "value": "opensearch" },
+              { "selected": false, "text": "minio", "value": "minio" },
+              { "selected": false, "text": "qdrant", "value": "qdrant" },
+              { "selected": false, "text": "authelia", "value": "authelia" }
+            ],
+            "query": "mongodb,postgres,redis,rabbitmq,opensearch,minio,qdrant,authelia",
+            "refresh": 0,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "custom",
+            "label": "대상 인프라"
+          },
+          {
+            "current": { "selected": false, "text": "", "value": "" },
+            "hide": 0,
+            "label": "키워드 필터 (Search)",
+            "name": "search",
+            "options": [
+              { "selected": true, "text": "", "value": "" }
+            ],
+            "query": "",
+            "skipUrlSync": false,
+            "type": "textbox"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+      },
+      "timezone": "browser",
+      "title": "Homelab Infra - 이상 징후 탐지 및 로그 인텔리전스",
+      "uid": "infra-anomaly-detection",
+      "version": 1
+    }
