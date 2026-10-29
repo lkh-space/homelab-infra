@@ -23,7 +23,7 @@ make audit-users
 | **PostgreSQL** | `postgres` | `superuser`, `createdb` | 이외 계정 발견 시 점검 필수 |
 | **MongoDB** | `admin` (DB: `admin`) | `root@admin` | `admin.system.users` 전체 기준 |
 | **RabbitMQ** | `admin` | `[administrator]` | `guest` 등 추가 계정 없어야 정상 |
-| **OpenSearch** | `admin` | `admin` | ⚠️ 초기 구성 시 데모 계정(`kibanaserver`, `logstash`, `readall`, `anomalyadmin` 등)이 남아있을 수 있으므로 불필요 시 삭제 권장 |
+| **OpenSearch** | `admin` (및 기본 내장 계정 6종) | `admin` | 기본 내장(`logstash`, `kibanaserver`, `readall`, `kibanaro`, `snapshotrestore`, `anomalyadmin`) 외 미승인 계정 발견 시 점검 |
 | **Authelia SSO** | `admin` (선택: `guest`) | `admins`, `dev` | `k8s/authelia/users_database.yml` 관리 |
 
 ---
@@ -108,18 +108,15 @@ kubectl exec -n infra deploy/postgres -- psql -U postgres -c \
 kubectl exec -n infra rabbitmq-0 -- rabbitmqctl delete_user "<ROGUE_USER>"
 ```
 
-#### 🔍 OpenSearch 불필요/데모/이상 계정 삭제
-OpenSearch 초기 설치 시 포함된 데모 계정(`kibanaserver`, `logstash`, `readall`, `kibanaro`, `snapshotrestore`, `anomalyadmin`)이나 미승인 계정을 제거합니다:
+#### 🔍 OpenSearch 미승인 이상 계정 삭제
+OpenSearch 기본 내장 계정 외에 승인되지 않은 이상 계정(`<ROGUE_USER>`)이 발견된 경우 즉시 제거합니다:
 ```bash
-# 특정 내부 계정 삭제 (예: logstash, readall, anomalyadmin 등)
 kubectl exec -n infra opensearch-0 -- /bin/bash -c '
-  for u in logstash readall kibanaro snapshotrestore anomalyadmin; do
-    curl -s -k -X DELETE -u "admin:$OPENSEARCH_INITIAL_ADMIN_PASSWORD" \
-      "https://localhost:9200/_plugins/_security/api/internalusers/$u" && echo ""
-  done
+  curl -s -k -X DELETE -u "admin:$OPENSEARCH_INITIAL_ADMIN_PASSWORD" \
+    "https://localhost:9200/_plugins/_security/api/internalusers/<ROGUE_USER>" && echo ""
 '
 ```
-*(주의: OpenSearch Dashboards가 내부 통신에 `admin` 계정을 사용 중이므로 `admin`은 삭제하지 마십시오)*
+*(주의: `admin` 및 기본 내장 시스템 계정은 삭제하지 마십시오)*
 
 #### 🔐 Authelia SSO 계정 삭제
 1. 로컬 `k8s/authelia/users_database.yml` 파일에서 해당 계정 블록을 삭제합니다.
@@ -156,31 +153,204 @@ kubectl exec -n infra opensearch-0 -- /bin/bash -c '
 
 ---
 
-### [5단계] 재발 방지: 애플리케이션용 최소 권한 계정 분리 (권장)
+### [5단계] 재발 방지: 루트 계정 봉인 및 최소 권한(RBAC) 분리
 
-실무에서는 백엔드 애플리케이션에 `root`(`admin`) 계정을 주지 않고, **계정 생성 권한(`createUser`)이 없는 앱 전용 계정**을 만들어 부여합니다:
-
-* **MongoDB 앱 전용 계정 생성 예시 (`readWrite`만 부여)**:
-  ```javascript
-  db.getSiblingDB("admin").createUser({
-    user: "myspace_app",
-    pwd: "<STRONG_PASSWORD>",
-    roles: [{ role: "readWrite", db: "myspace" }] // 계정 생성(userAdmin) 권한 없음!
-  })
-  ```
-* **PostgreSQL 앱 전용 계정 생성 예시 (`NOSUPERUSER NOCREATEROLE`)**:
-  ```sql
-  CREATE USER myspace_app WITH PASSWORD '<STRONG_PASSWORD>' NOSUPERUSER NOCREATEDB NOCREATEROLE;
-  GRANT ALL PRIVILEGES ON DATABASE homelab_db TO myspace_app;
-  ```
+침해 복구가 끝난 후에는 애플리케이션이나 개발자가 루트 계정(`admin`, `postgres`)을 직접 쓰지 않도록 **3장의 신규 계정 생성 가이드**에 따라 최소 권한 계정으로 분리합니다.
 
 ---
 
-## 3. 🐙 GitHub 계정 및 리포지토리 백도어 점검/조치 가이드
+## 3. 🛠️ 인프라별 신규 계정 안전 생성 및 권한 분리(RBAC) 가이드
+
+새로운 마이크로서비스나 개발자/분석 도구를 연동할 때는 루트 계정을 공유하지 말고, 아래 절차에 따라 **계정 생성 권한(`createUser`/`CREATEROLE`)이 제거된 용도별 전용 계정**을 생성하십시오.
+
+> [!TIP]
+> **신규 계정용 16자리 안전한 랜덤 비밀번호 생성 명령어**:
+> ```bash
+> LC_ALL=C tr -dc 'A-Za-z0-9!@#%^*_+-=' < /dev/urandom | head -c 16; echo ""
+> ```
+
+---
+
+### 3.1 🍃 MongoDB 권한별 계정 생성 및 관리
+
+MongoDB에서는 모든 계정을 `admin` DB에서 통합 관리하되, **`roles` 배열에서 대상 데이터베이스(`db`)와 권한(`readWrite` 또는 `read`)을 제한**하는 것이 실무 표준입니다.
+
+#### 1) 백엔드 애플리케이션 전용 계정 생성 (`readWrite` 권한만 부여)
+* 특징: 지정된 DB(`myspace`)의 데이터 읽기/쓰기만 가능하며, **절대 다른 DB를 조회하거나 새 계정을 생성(`createUser`)할 수 없습니다.**
+```bash
+kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c '
+  mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "
+    db.getSiblingDB(\"admin\").createUser({
+      user: \"myspace_app\",
+      pwd: \"<NEW_STRONG_PASSWORD>\",
+      roles: [
+        { role: \"readWrite\", db: \"myspace\" }
+      ]
+    })
+  "
+'
+```
+* **애플리케이션 접속 URI 예시**:
+  ```text
+  mongodb://myspace_app:<PASSWORD>@mongodb-0.mongo-headless.infra.svc.cluster.local:27017,mongodb-1.mongo-headless.infra.svc.cluster.local:27017,mongodb-2.mongo-headless.infra.svc.cluster.local:27017/myspace?replicaSet=rs0&authSource=admin
+  ```
+
+#### 2) 개발자 / 데이터 분석용 읽기 전용 계정 생성 (`read` 권한만 부여)
+* 특징: 데이터 조회(`find`, `aggregate`)만 가능하며, 데이터 수정/삭제(`insert`, `update`, `delete`, `drop`)가 원천 차단됩니다.
+```bash
+kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c '
+  mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "
+    db.getSiblingDB(\"admin\").createUser({
+      user: \"myspace_readonly\",
+      pwd: \"<NEW_STRONG_PASSWORD>\",
+      roles: [
+        { role: \"read\", db: \"myspace\" }
+      ]
+    })
+  "
+'
+```
+
+#### 3) 기존 계정의 권한 추가 / 회수 / 비밀번호 변경
+```bash
+# 권한 추가 (grantRolesToUser)
+kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c '
+  mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "
+    db.getSiblingDB(\"admin\").grantRolesToUser(\"myspace_app\", [{ role: \"read\", db: \"analytics\" }])
+  "
+'
+
+# 권한 회수 (revokeRolesFromUser)
+kubectl exec -n infra mongodb-0 -c mongodb -- /bin/bash -c '
+  mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "
+    db.getSiblingDB(\"admin\").revokeRolesFromUser(\"myspace_app\", [{ role: \"read\", db: \"analytics\" }])
+  "
+'
+```
+
+---
+
+### 3.2 🐘 PostgreSQL 권한별 계정 생성 및 관리
+
+PostgreSQL에서는 반드시 **`NOSUPERUSER NOCREATEDB NOCREATEROLE`** 옵션을 명시하여, 해당 계정이 탈취되더라도 슈퍼유저 권한 행사나 유령 계정 추가를 할 수 없도록 막아야 합니다.
+
+#### 1) 백엔드 애플리케이션 전용 계정 생성 (`readWrite` + 마이그레이션 권한)
+```bash
+kubectl exec -n infra deploy/postgres -- psql -U postgres -d homelab_db -c "
+  -- 1. 슈퍼유저 및 계정 생성 권한이 없는 일반 로그인 역할 생성
+  CREATE ROLE myspace_app WITH LOGIN PASSWORD '<NEW_STRONG_PASSWORD>' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+
+  -- 2. 데이터베이스 접속 및 public 스키마 사용/생성 권한 부여
+  GRANT CONNECT ON DATABASE homelab_db TO myspace_app;
+  GRANT USAGE, CREATE ON SCHEMA public TO myspace_app;
+
+  -- 3. 기존 모든 테이블/시퀀스에 대한 읽기·쓰기 권한 부여
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO myspace_app;
+  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO myspace_app;
+
+  -- 4. 향후 생성될 테이블에도 자동으로 권한 부여
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO myspace_app;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO myspace_app;
+"
+```
+
+#### 2) 개발자 / 분석용 읽기 전용(`Read-Only`) 계정 생성
+PostgreSQL 14 이상에서 기본 제공하는 `pg_read_all_data` 내장 역할을 활용하면 단 두 줄로 안전한 읽기 전용 계정을 만들 수 있습니다:
+```bash
+kubectl exec -n infra deploy/postgres -- psql -U postgres -d homelab_db -c "
+  CREATE ROLE myspace_readonly WITH LOGIN PASSWORD '<NEW_STRONG_PASSWORD>' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+  GRANT CONNECT ON DATABASE homelab_db TO myspace_readonly;
+  GRANT pg_read_all_data TO myspace_readonly;
+"
+```
+
+---
+
+### 3.3 🐇 RabbitMQ 권한별 계정 및 vhost 생성
+
+RabbitMQ에서는 애플리케이션 워커 계정에 `administrator` 태그를 부여하지 않고, 특정 가상 호스트(`vhost`)에 대한 큐/익스체인지 권한만 부여합니다.
+
+#### 1) 애플리케이션 전용 계정 생성 (관리자 태그 제외)
+```bash
+# 1. 신규 계정 생성
+kubectl exec -n infra rabbitmq-0 -- rabbitmqctl add_user myspace_app "<NEW_STRONG_PASSWORD>"
+
+# 2. 기본 vhost("/")에 대해 설정(configure), 쓰기(write), 읽기(read) 권한만 부여 (관리자 태그 없음)
+kubectl exec -n infra rabbitmq-0 -- rabbitmqctl set_permissions -p "/" myspace_app ".*" ".*" ".*"
+```
+
+#### 2) 대시보드 모니터링 전용 계정 생성 (`monitoring` 태그)
+```bash
+kubectl exec -n infra rabbitmq-0 -- rabbitmqctl add_user myspace_monitor "<NEW_STRONG_PASSWORD>"
+kubectl exec -n infra rabbitmq-0 -- rabbitmqctl set_user_tags myspace_monitor monitoring
+kubectl exec -n infra rabbitmq-0 -- rabbitmqctl set_permissions -p "/" myspace_monitor "^$" "^$" ".*"
+```
+
+---
+
+### 3.4 🔍 OpenSearch 내부 계정 생성
+
+OpenSearch Security 플러그인의 REST API를 사용하여 특정 역할(`backend_roles`)만 가진 계정을 생성합니다:
+
+```bash
+# 읽기 전용(readall) 권한을 가진 분석가 계정 생성 예시
+kubectl exec -n infra opensearch-0 -- /bin/bash -c '
+  curl -s -k -X PUT -u "admin:$OPENSEARCH_INITIAL_ADMIN_PASSWORD" \
+    "https://localhost:9200/_plugins/_security/api/internalusers/myspace_reader" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"password\": \"<NEW_STRONG_PASSWORD>\",
+      \"backend_roles\": [\"readall\"]
+    }" && echo ""
+'
+```
+
+---
+
+### 3.5 🔐 Authelia SSO 게이트웨이 사용자 추가
+
+1. **Argon2id 비밀번호 해시 생성**:
+   ```bash
+   kubectl exec -n infra deploy/authelia -- authelia crypto hash generate argon2 --password '<NEW_STRONG_PASSWORD>'
+   ```
+2. **로컬 `k8s/authelia/users_database.yml`에 계정 추가**:
+   ```yaml
+   users:
+     new_user:
+       displayname: "New Developer"
+       password: "$argon2id$v=19$m=65536,t=3,p=4$..."
+       email: "dev@homelab.local"
+       groups:
+         - "dev"
+   ```
+3. **클러스터 Secret 반영**:
+   ```bash
+   make secrets
+   ```
+
+---
+
+### 3.6 ✅ 신규 계정 생성 후 필수 사후 체크리스트 (유령 계정 오인 방지)
+
+계정을 새로 만든 뒤 기록을 남기지 않으면, 나중에 본인이나 에이전트가 `make audit-users`를 돌렸을 때 **침해 사고로 생긴 유령 계정인지 정상 계정인지 구분할 수 없게 됩니다.** 계정 생성 직후 반드시 아래 3가지를 수행하십시오:
+
+1. **`.credentials.local` 파일에 기록**:
+   * 프로젝트 루트의 `.credentials.local`(Git 제외 파일)에 새로 만든 계정명, 비밀번호, 용도를 주석과 함께 기록합니다.
+2. **본 문서 1장의 `정상 계정 화이트리스트(Baseline 기준표)` 업데이트**:
+   * 본 문서 상단 표의 `정상 승인 계정 (Allowlist)` 칸에 신규 계정명을 추가합니다.
+3. **`make audit-users` 실행 및 검증**:
+   ```bash
+   make audit-users
+   ```
+   명령을 실행하여 의도한 권한(Role)으로 정확히 생성되었는지 최종 확인합니다.
+
+---
+
+## 4. 🐙 GitHub 계정 및 리포지토리 백도어 점검/조치 가이드
 
 GitHub에서도 계정 토큰(PAT)이나 세션이 유출되면 공격자가 **몰래 외부 협력자(Collaborator)를 추가하거나, Deploy Key(SSH 키) 및 Webhook을 심어두는 방식**으로 백도어를 만듭니다.
 
-### 3.1 GitHub 백도어 4대 점검 명령어 (`gh` CLI 활용)
+### 4.1 GitHub 백도어 4대 점검 명령어 (`gh` CLI 활용)
 
 맥북 터미널에서 아래 명령어로 내 계정과 리포지토리에 모르는 사람이나 키가 등록되어 있지 않은지 즉시 확인할 수 있습니다:
 
@@ -198,7 +368,7 @@ gh api repos/lkh-space/homelab-infra/hooks
 gh api user/keys
 ```
 
-### 3.2 GitHub에서 이상 징후 발견 시 즉시 조치 절차
+### 4.2 GitHub에서 이상 징후 발견 시 즉시 조치 절차
 
 1. **수상한 SSH Key / Deploy Key / PAT 즉시 삭제 (Revoke)**:
    * 개인 설정: GitHub 우측 상단 프로필 ➔ `Settings` ➔ **`SSH and GPG keys`** 및 **`Developer settings` ➔ `Personal access tokens`**에서 모르는 키/토큰 즉시 `Delete` / `Revoke`.

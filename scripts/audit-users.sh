@@ -74,9 +74,15 @@ if kubectl get pod -n "${NAMESPACE}" opensearch-0 2>/dev/null | grep -q "Running
     python3 -c "
 import sys, json
 data = json.load(sys.stdin)
+builtin = {'logstash', 'snapshotrestore', 'kibanaserver', 'kibanaro', 'readall', 'anomalyadmin'}
 for user, info in data.items():
     roles = ', '.join(info.get('backend_roles', [])) or 'none'
-    marker = '✅ (관리자)' if user == 'admin' else '⚠️  (기본 데모/추가 계정 - 점검 필요)'
+    if user == 'admin':
+        marker = '✅ (루트 관리자)'
+    elif user in builtin:
+        marker = 'ℹ️  (기본 내장 계정)'
+    else:
+        marker = '🚨 (미승인 추가 계정 - 점검 필요!)'
     print(f'  - 계정명: {user:<16} | 역할: [{roles:<22}] {marker}')
 "
 else
