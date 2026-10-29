@@ -21,7 +21,8 @@ RESET  := $(shell tput sgr0 2>/dev/null || echo "")
         start-redis stop-redis check-redis \
         start-kubeview stop-kubeview check-kubeview \
         check-monitoring check-backend \
-        mem stop-apps start-apps stop-heavy start-heavy sleep wake
+        mem stop-apps start-apps stop-heavy start-heavy sleep wake \
+        audit-users
 
 ## -----------------------------------------------------------------------------
 ## 📖 도움말
@@ -36,6 +37,7 @@ help:
 	@echo "    make stop              - 6대 서비스 및 KubeView 일시 정지 (Scale to 0)"
 	@echo "    make restart           - 전체 서비스 재기동"
 	@echo "    make check             - 6대 서비스 및 KubeView 헬스체크 일괄 실행"
+	@echo "    make audit-users       - 전체 인프라 계정 및 권한 전수 감사 (이상 계정 탐지)"
 	@echo ""
 	@echo "  $(YELLOW)[⚡️ 호스트 리소스 절약 (Resource Saver)]$(RESET)"
 	@echo "    make mem               - 메모리 점유율 및 파드별 자원 랭킹 조회"
@@ -324,3 +326,6 @@ ca:
 certs:
 	@echo "$(CYAN)📜 cert-manager ClusterIssuer 및 발급 인증서 현황...$(RESET)"
 	@kubectl get clusterissuer,certificate -A
+
+audit-users:
+	@./scripts/audit-users.sh

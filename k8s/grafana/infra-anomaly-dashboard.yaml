@@ -145,12 +145,12 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "sum(count_over_time({namespace=\"infra\", app=~\"$service\"} |~ \"(?i)(authentication failed|auth failed|wrongpass|noauth|access_refused|accessdenied|unsuccessful 1fa|unauthorized)\" [$__auto]))",
+              "expr": "sum(count_over_time({namespace=\"infra\", app=~\"$service\"} |~ \"(?i)(authentication failed|auth failed|wrongpass|noauth|access_refused|accessdenied|unsuccessful 1fa|unauthorized|createuser|grantrolestouser|create role|create user|add_user)\" [$__auto]))",
               "queryType": "range",
               "refId": "A"
             }
           ],
-          "title": "보안/인증 실패 (Auth Fail)",
+          "title": "보안/인증 실패 & 계정 생성 시도",
           "type": "stat"
         },
         {
@@ -363,12 +363,12 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "{namespace=\"infra\", app=\"mongodb\", container=\"mongodb\"} |~ \"(\\\"s\\\":\\\"[WEF]\\\"|Slow query|COLLSCAN|Authentication failed|Unauthorized|connection accepted|end connection)\" |~ \"(?i)$search\" | json | line_format \"[{{.s}}] [{{.c}}] ({{.ctx}}) {{.msg}}{{if .attr_durationMillis}} | ⏱️ {{.attr_durationMillis}}ms{{end}}{{if .attr_ns}} | 📂 ns={{.attr_ns}}{{end}}{{if .attr_planSummary}} | 🔍 plan={{.attr_planSummary}}{{end}}{{if .attr_remote}} | 🌐 client={{.attr_remote}}{{end}}{{if .attr_error}} | ❌ err={{.attr_error}}{{end}}\"",
+              "expr": "{namespace=\"infra\", app=\"mongodb\", container=\"mongodb\"} |~ \"(\\\"s\\\":\\\"[WEF]\\\"|Slow query|COLLSCAN|Authentication failed|Unauthorized|createUser|updateUser|grantRolesToUser|dropUser|connection accepted|end connection)\" |~ \"(?i)$search\" | json | line_format \"[{{.s}}] [{{.c}}] ({{.ctx}}) {{.msg}}{{if .attr_durationMillis}} | ⏱️ {{.attr_durationMillis}}ms{{end}}{{if .attr_ns}} | 📂 ns={{.attr_ns}}{{end}}{{if .attr_planSummary}} | 🔍 plan={{.attr_planSummary}}{{end}}{{if .attr_remote}} | 🌐 client={{.attr_remote}}{{end}}{{if .attr_error}} | ❌ err={{.attr_error}}{{end}}\"",
               "queryType": "range",
               "refId": "A"
             }
           ],
-          "title": "🍃 MongoDB 이상 징후 & 접속/쿼리 요약 뷰 (Slow Query / Auth / Dump 접속 추적)",
+          "title": "🍃 MongoDB 이상 징후 & 계정/쿼리 요약 뷰 (Slow Query / createUser / Auth / Dump 추적)",
           "type": "logs"
         },
         {
