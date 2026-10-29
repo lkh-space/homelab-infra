@@ -29,14 +29,13 @@
 
 ## 2. 환경 변수 및 시크릿 스키마
 
-- **Kubernetes Secret**:
-  - `mongo-secret`: 마스터 계정 정보 (`.env.mongo`)
-  - `mongodb-auth`: 노드 간 인증 키파일 (`replica-key`, `k8s/mongo/mongo.yaml` 내 정의)
+- **Kubernetes Secret 이름**: `mongo-secret` (`.env.mongo`로부터 생성)
 - **필수 환경변수 키 (`.env.mongo`)**:
   | 환경변수 키 | 설명 | 현재 설정 예시/기본값 |
   | :--- | :--- | :--- |
   | `MONGO_INITDB_ROOT_USERNAME` | MongoDB 루트 관리자 아이디 | `admin` |
   | `MONGO_INITDB_ROOT_PASSWORD` | MongoDB 루트 관리자 암호 | `<your-secure-password>` |
+  | `MONGO_REPLICA_KEY` | Replica Set 내부 노드 간 인증 키파일 (Base64 문자열) | `<your-base64-replica-key>` |
 
 ---
 

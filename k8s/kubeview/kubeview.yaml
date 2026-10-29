@@ -28,7 +28,6 @@ rules:
       - pods/log
       - services
       - configmaps
-      - secrets
       - endpoints
       - namespaces
       - persistentvolumeclaims

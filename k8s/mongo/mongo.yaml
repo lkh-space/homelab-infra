@@ -31,18 +31,6 @@ spec:
   selector:
     statefulset.kubernetes.io/pod-name: mongodb-0
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mongodb-auth
-  namespace: infra
-  labels:
-    app: mongodb
-type: Opaque
-stringData:
-  # MongoDB 내부 노드 통신용 보안 키 (필수)
-  replica-key: "bW9uZ29kYXJlcGxpY2FrZXlmaWxlc2VjdXJlcmFuZG9tc3RyaW5nMjAyNg=="
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -67,8 +55,11 @@ spec:
       volumes:
         - name: mongodb-keyfile
           secret:
-            secretName: mongodb-auth
+            secretName: mongo-secret
             defaultMode: 0400
+            items:
+              - key: MONGO_REPLICA_KEY
+                path: replica-key
       containers:
         - name: mongodb
           image: mongo:8.0

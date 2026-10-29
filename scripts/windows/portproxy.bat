@@ -43,12 +43,12 @@ wsl -u root systemctl start k3s
 echo [성공] k3s 서비스 기동 완료 (런타임 초기화 및 안정화 10초 대기 중...)
 timeout /t 10 /nobreak >nul
 
-:: 4. 윈도우 방화벽 인바운드 규칙 보장 (6443, 22, 80, 443, 30900, 30901, 5432, 5672, 15672, 6333, 6334, 30432, 30672, 30572, 30333, 30334)
+:: 4. 윈도우 방화벽 인바운드 규칙 보장 (로컬 서브넷, Tailscale VPN, WSL2 내부 대역만 허용)
 echo.
 echo [3/4] Windows 방화벽 포트 허용 규칙 등록 중...
 netsh advfirewall firewall delete rule name="Homelab_WSL_Ports" >nul 2>&1
-netsh advfirewall firewall add rule name="Homelab_WSL_Ports" dir=in action=allow protocol=TCP localport=6443,22,80,443,30900,30901,5432,5672,15672,6333,6334,30432,30672,30572,30333,30334 >nul 2>&1
-echo [성공] 방화벽 포트 등록 완료
+netsh advfirewall firewall add rule name="Homelab_WSL_Ports" dir=in action=allow protocol=TCP localport=6443,22,80,443,30900,30901,5432,5672,15672,6333,6334,30432,30672,30572,30333,30334 remoteip=LocalSubnet,192.168.0.0/24,100.64.0.0/10,172.16.0.0/12 >nul 2>&1
+echo [성공] 방화벽 포트 등록 완료 (로컬 LAN 및 Tailscale 대역 한정)
 
 :: 5. netsh portproxy 등록 (외부 -> WSL2 전달)
 echo.

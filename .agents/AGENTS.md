@@ -46,7 +46,7 @@
 - **StatefulSet 볼륨 불변성**: `volumeClaimTemplates` 및 스토리지 클래스(`local-path`) 설정은 임의로 수정할 수 없습니다. 변경이 필요하면 반드시 사용자에게 사전에 알리고 승인을 받으십시오.
 
 ### [Rule 3] 환경 변수 및 시크릿 격리 엄수
-- **평문 비밀번호 커밋 금지**: `.env.*` 파일은 Git 추적에서 제외되어 있습니다. YAML 매니페스트 내부에 비밀번호, 키파일 등을 평문(`stringData`/`data`)으로 하드코딩하여 커밋하지 마십시오. (단, mongo 내부 통신용 더미 키파일 등 예외 제외)
+- **평문 비밀번호 커밋 금지**: `.env.*` 파일은 Git 추적에서 제외되어 있습니다. YAML 매니페스트 내부에 비밀번호, 키파일 등을 평문(`stringData`/`data`)으로 하드코딩하여 커밋하지 마십시오.
 - **키 이름 정합성**: 매니페스트의 `secretKeyRef` 또는 `envFrom`에서 참조하는 키 이름은 반드시 해당 서비스의 참조 문서([`.agents/references/services/<service>.md`](file:///Users/limkeunhyeok/workspace/homelab-infra/.agents/references/services/))의 명세와 일치해야 합니다.
 - **파드 환경변수 위임 및 비밀번호 확인**: 헬스체크나 파드 점검 시에는 하드코딩된 비밀번호 대신 파드 내부 환경변수(`$REDIS_PASSWORD` 등)를 우선 활용하십시오. 실제 비밀번호 조회가 필요한 경우에는 Git에서 격리된 로컬 `k8s/<service>/.env.<service>` 또는 Kubernetes Secret을 참조하십시오.
 

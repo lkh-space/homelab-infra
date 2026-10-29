@@ -257,6 +257,15 @@ secrets:
 	@kubectl create secret generic opensearch-secret --from-env-file=k8s/opensearch/.env.opensearch -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
 	@kubectl create secret generic rabbitmq-secret --from-env-file=k8s/rabbitmq/.env.rabbitmq -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
 	@kubectl create secret generic redis-secret --from-env-file=k8s/redis/.env.redis -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	@if [ -f k8s/qdrant/.env.qdrant ]; then \
+		kubectl create secret generic qdrant-secret --from-env-file=k8s/qdrant/.env.qdrant -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - ; \
+	fi
+	@if [ -f k8s/authelia/.env.authelia ]; then \
+		kubectl create secret generic authelia-secret --from-env-file=k8s/authelia/.env.authelia -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - ; \
+	fi
+	@if [ -f k8s/authelia/users_database.yml ]; then \
+		kubectl create secret generic authelia-users --from-file=users_database.yml=k8s/authelia/users_database.yml -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - ; \
+	fi
 	@if [ -f k8s/grafana/.env.grafana ]; then \
 		kubectl create secret generic grafana-secret --from-env-file=k8s/grafana/.env.grafana -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - ; \
 	fi

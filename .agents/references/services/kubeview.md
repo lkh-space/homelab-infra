@@ -34,7 +34,7 @@ KubeView는 클러스터 내 리소스를 시각화하기 위해 오직 **읽기
 | 대상 API Group | 리소스 목록 | 허용 동작 (Verbs) | 용도 |
 | :--- | :--- | :--- | :--- |
 | `apps` | `deployments`, `statefulsets`, `daemonsets`, `replicasets` | `get`, `list`, `watch` | 상위 워크로드 컨트롤러 및 복제본 토폴로지 렌더링 |
-| `""` (Core) | `pods`, `services`, `endpoints`, `persistentvolumeclaims`, `namespaces`, `events`, `configmaps`, `secrets` | `get`, `list`, `watch` | 파드 상태, 서비스 바인딩, 영속 스토리지 매핑 |
+| `""` (Core) | `pods`, `services`, `endpoints`, `persistentvolumeclaims`, `namespaces`, `events`, `configmaps` | `get`, `list`, `watch` | 파드 상태, 서비스 바인딩, 영속 스토리지 매핑 |
 | `networking.k8s.io` | `ingresses` | `get`, `list`, `watch` | 외부 인입 라우팅과 서비스 간 연결선 표시 |
 | `discovery.k8s.io` | `endpointslices` | `get`, `list`, `watch` | 최신 k8s 서비스 백엔드 엔드포인트 해석 |
 | `autoscaling` | `horizontalpodautoscalers` | `get`, `list`, `watch` | HPA 스케일러 연동 상태 감시 |
